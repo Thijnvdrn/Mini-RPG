@@ -22,23 +22,27 @@ Je begint met 20 goud en twee Health Potions. Kies uit drie klassen:
 | Magiër | 80 | 25 | 10% |
 | Sluipmoordenaar | 95 | 16 | 40% |
 
-Verken het bos om Goblins, Orcs en Draken tegen te komen. In 25% van de verkenningen is er geen gevecht en herstel je maximaal 8 HP. Tijdens een gevecht kun je aanvallen, een potion gebruiken of proberen te vluchten. Een kritieke treffer doet dubbele schade. Vluchten lukt bij gewone vijanden met 60% kans; als het mislukt, valt de vijand aan. Bij 0 HP eindigt het spel.
+Klik op **Verkennen** om het bos te onderzoeken. Je ontmoet met 75% kans een Goblin, Orc of Draak; anders herstel je 8 HP. Tijdens gevechten kies je tussen aanvallen, verdedigen, een potion of vluchten. Een kritieke treffer doet dubbele schade. Elke derde vijandelijke beurt volgt een zware aanval met 150% aanvalskracht. De interface waarschuwt hiervoor voordat je je actie kiest. **Verdedigen** kost je aanval die beurt, maar blokkeert 65% van de schade. Potions en mislukte vluchtpogingen geven de vijand ook een beurt.
 
-Versla vijanden om goud en XP te verdienen. Iedere level vereist `level × 80` XP. Een nieuw level geeft 12 Max HP en 3 aanval; je huidige HP wordt daarbij niet hersteld. Vijanden worden sterker naarmate je level stijgt: per level krijgen ze 12 extra HP en 2 extra aanval.
+Vluchten lukt bij gewone vijanden met 60% kans. Bij 0 HP verlies je je goud en herstel je met volle HP; level, XP, upgrades en inventaris blijven behouden.
 
-De handelaar verkoopt Health Potions voor 20 goud en wapen-upgrades voor 45 goud. Een potion herstelt 50% van je maximale HP (naar beneden afgerond), tot maximaal je volle gezondheid. Een wapen-upgrade geeft 5 extra aanval.
+Versla vijanden voor goud en XP. Het volgende level vereist `100 × level + 4 × (level − 1)²` XP. Elk level geeft 12 Max HP en 2 aanval, zonder je huidige HP te herstellen. Vijanden krijgen per extra level 14 HP, plus `(level − 1)² // 4` HP. Hun aanval groeit met 1 per extra level en nog 1 per vijf extra levels. De route naar de eindbaas duurt daardoor langer en vijanden blijven ook later meerdere treffers vragen.
+
+De handelaar verkoopt Health Potions voor 20 goud. Een potion herstelt 50% van je Max HP, naar beneden afgerond en tot maximaal volle gezondheid. Wapen-upgrades geven 3 aanval. De eerste kost 80 goud; bij `n` gekochte upgrades kost de volgende `80 + 35n + 15n²` goud. Je kunt maximaal `1 + level // 2` upgrades kopen. Elke twee levels komt dus een extra upgrade vrij. Gewone vijanden geven per extra level 2 extra goud en 5 extra XP.
 
 ### De Nachtvorst
 
-Bij level 20 begint het baasgevecht tegen de Nachtvorst. Als je tijdens een gevecht level 20 bereikt, begint het gevecht meteen; anders start het bij je volgende verkenning. De baas heeft 5000 HP en geneest tijdens het gevecht iedere seconde 100 HP. Elke derde vijandelijke beurt gebruikt hij schaduwvuur, dat 150% van zijn aanval doet. Onder de helft van zijn HP wordt hij woedend en krijgt hij 12 extra aanval.
+Op level 30 verschijnt de Nachtvorst: direct wanneer je die grens bereikt na een overwinning, of bij de volgende verkenning. Hij heeft 1400 HP en 34 aanval. Hij geneest na elke vijandelijke beurt 12 HP, ook wanneer je verdedigt of een potion gebruikt. Je kunt dus rustig nadenken; snel klikken versnelt zijn genezing niet en omzeilt haar ook niet.
 
-Vluchten bij de baas lukt met 35% kans. Na een ontsnapping verschijnt hij bij de volgende verkenning weer met volle HP. Een overwinning geeft eenmalig 500 goud en 1200 XP. Boven level 20 krijgt de Nachtvorst per extra level 30 HP en 3 aanval. Je voortgang wordt niet opgeslagen wanneer je het spel afsluit.
+Elke derde beurt gebruikt hij schaduwvuur met 150% aanvalskracht. Zodra hij bij zijn aanval op halve HP of lager staat, wordt hij blijvend woedend en doet hij dubbele schade. Let op de waarschuwing en plan je verdediging en potions. Vluchten lukt met 35% kans. Na vluchten of verliezen kun je hem via Verkennen opnieuw uitdagen, met volle HP.
+
+Een overwinning geeft eenmalig 500 goud en 1200 XP. Boven level 30 krijgt de Nachtvorst per extra level 30 HP en 2 aanval. Je voortgang wordt niet opgeslagen wanneer je het spel afsluit. De testnaam `Baas` begint op level 29 met 10.000 goud; ook dan geldt de upgradegrens.
 
 ## Hoe de code is opgebouwd
 
 - **`main.py`** bevat de spelregels en de Tkinter-interface. Hier worden de speler en vijanden aangemaakt, beurten afgehandeld, XP en levels bijgehouden, de winkel beheerd en het baasgevecht geregeld.
 - **`visuals.py`** tekent het bos, de helden, de vijanden en de HUD van de Nachtvorst op een Tkinter Canvas. De illustraties worden in code getekend; er zijn geen losse afbeeldingen nodig.
-- **`test_boss.py`** bevat regressietests voor onder andere level-ups, het starten en stoppen van het baasgevecht, genezing, vluchten en de baasbeloning.
+- **`test_boss.py`** bevat regressietests voor onder andere level-ups, het starten en stoppen van het baasgevecht, genezing per beurt, vluchten, de baasbeloning, verkennen, verdedigen en upgradegrenzen.
 
 De belangrijkste spelinstellingen — zoals prijzen, genezing, levelbonussen en de level waarop de baas verschijnt — staan als constanten bovenaan `main.py`. Klasse-statistieken vind je in `KLASSEN`; de basiswaarden en beloningen van gewone vijanden staan in `maak_vijand()`. Voor nieuwe of aangepaste illustraties kun je terecht in `visuals.py`.
 

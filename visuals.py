@@ -59,7 +59,7 @@ def landschap(canvas, breedte, hoogte, tijd=0):
         canvas.create_oval(x-1.5, y-1.5, x+1.5, y+1.5, fill="#b9c987", outline="", tags="landschap")
 
 
-def baas_balk(canvas, breedte, vijand, schaduwvuur=False, genezing=100):
+def baas_balk(canvas, breedte, vijand, schaduwvuur=False, genezing=12):
     """Een brede baasindicator boven de bomen; blijft leesbaar bij schalen."""
     links, rechts = breedte * .18, breedte * .82
     tag = "baas_hud"
@@ -76,12 +76,12 @@ def baas_balk(canvas, breedte, vijand, schaduwvuur=False, genezing=100):
                                 outline="", tags="baas_hp")
     canvas.create_text(breedte/2, 56, text=f"{vijand['hp']} / {vijand['max_hp']} HP",
                        fill="#fff0de", font=("Segoe UI", 9, "bold"), tags=tag)
-    fase = "WOEDEND  ·  +12 aanval" if vijand["woedend"] else "FASE I  ·  De schaduw ontwaakt"
+    fase = "WOEDEND  ·  2× schade" if vijand["woedend"] else "FASE I  ·  De schaduw ontwaakt"
     waarschuwing = "SCHADUWVUUR: VOLGENDE BEURT!" if schaduwvuur else "Schaduwvuur elke derde beurt"
     canvas.create_text(breedte/2, 83, text=f"{fase}   |   {waarschuwing}",
                        fill="#ffbd86" if schaduwvuur else "#c6afaa",
                        font=("Segoe UI", 9), tags=tag)
-    canvas.create_text(breedte/2, 102, text=f"ZELFGENEZING  +{genezing} HP / seconde",
+    canvas.create_text(breedte/2, 102, text=f"ZELFGENEZING  +{genezing} HP / beurt",
                        fill="#83c98a", font=("Segoe UI", 9), tags=tag)
 
 
