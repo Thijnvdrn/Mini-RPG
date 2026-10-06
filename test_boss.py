@@ -9,7 +9,7 @@ from main import (MiniRPG, maak_vijand, maak_speler, xp_voor_level, wapen_prijs,
                   LEVEL_AANVAL_UPGRADE, LEVEL_VERDEDIGING_UPGRADE,
                   WAPEN_VERBETERING, KLASSEN, NEDERLAAG_GOUD,
                   EINDBAAS_LEVEL, EINDBAAS_HP, EINDBAAS_AANVAL,
-                  EINDBAAS_GENEZING, VIJAND_XP_MULTIPLIER, maak_eindbaas)
+                  EINDBAAS_GENEZING, maak_baas, maak_eindbaas)
 
 
 class BaasgevechtTests(unittest.TestCase):
@@ -271,6 +271,17 @@ class BaasgevechtTests(unittest.TestCase):
         self.assertEqual(self.app.speler["aanval"], 18 + LEVEL_AANVAL_UPGRADE)
         self.assertEqual(self.app.level_upgrades, ["hp", "aanval"])
 
+    def test_meerdere_levels_kunnen_met_een_upgrade_keuze_worden_afgerond(self):
+        self.app.speler.update(
+            level=1, xp=xp_voor_level(1) + xp_voor_level(2),
+            hp=30, max_hp=120, aanval=18,
+        )
+        self.app.controleer_level()
+        self.app.kies_level_upgrade("aanval", alle_levels=True)
+        self.assertEqual(self.app.level_keuzes, [])
+        self.assertEqual(self.app.level_upgrades, ["aanval", "aanval"])
+        self.assertEqual(self.app.speler["aanval"], 18 + 2 * LEVEL_AANVAL_UPGRADE)
+
     def test_potion_geneest_halve_max_hp_en_kost_een_beurt(self):
         for max_hp, verwacht in [(120, 72), (390, 207), (121, 72)]:
             with self.subTest(max_hp=max_hp):
@@ -306,7 +317,7 @@ class BaasgevechtTests(unittest.TestCase):
             laag = maak_vijand(1)
             hoog = maak_vijand(20)
         self.assertEqual(laag["hp"], 40)
-        self.assertEqual(hoog["hp"], 472)
+        self.assertEqual(hoog["hp"], 210)
         self.assertEqual(hoog["aanval"], 30)
 
     def test_verkennen_vervangt_lopen_zonder_loop_timer(self):
@@ -333,10 +344,10 @@ class BaasgevechtTests(unittest.TestCase):
 
     def test_genezing_per_beurt_tot_maximum(self):
         self.start_baas()
-        self.app.vijand['hp'] = BAAS_HP-20
+        self.app.vijand['hp'] = BAAS_HP-12
         with patch('main.random.randint', return_value=34):
             self.app.vijand_valt_aan()
-            self.assertEqual(self.app.vijand['hp'], BAAS_HP-20+BAAS_GENEZING)
+            self.assertEqual(self.app.vijand['hp'], BAAS_HP-12+BAAS_GENEZING)
             self.app.vijand_valt_aan()
         self.assertEqual(self.app.vijand['hp'], BAAS_HP)
 
@@ -377,26 +388,27 @@ class ProgressieTests(unittest.TestCase):
                     with self.subTest(klasse=klasse, level=level, soort=soort):
                         with patch('main.random.choice', return_value=soort):
                             vijand = maak_vijand(level)
-                        self.assertGreater(vijand['hp'], 2*(aanval+3))
+                        self.assertGreater(vijand['hp'], aanval+3)
                         if level >= 20:
-                            self.assertGreaterEqual(vijand['hp'], 4*(aanval+3))
+                            self.assertGreaterEqual(vijand['hp'], 1.5*(aanval+3))
 
-    def test_level_100_bereikbaar_in_maximaal_20_gevechten(self):
+    def test_level_100_bereikbaar_in_maximaal_10_gevechten(self):
         level = 1
         xp = 0
         gevechten = 0
         nachtvorst_verslagen = False
         while level < EINDBAAS_LEVEL:
             if level >= BAAS_LEVEL and not nachtvorst_verslagen:
-                xp += 1200
+                xp += maak_baas(level)["xp"]
                 nachtvorst_verslagen = True
             else:
-                xp += (20 + (level - 1) * 5) * VIJAND_XP_MULTIPLIER
+                with patch("main.random.choice", return_value="Goblin"):
+                    xp += maak_vijand(level)["xp"]
             gevechten += 1
             while level < EINDBAAS_LEVEL and xp >= xp_voor_level(level):
                 xp -= xp_voor_level(level)
                 level += 1
-        self.assertLessEqual(gevechten, 20)
+        self.assertLessEqual(gevechten, 10)
 
 
 if __name__ == "__main__":

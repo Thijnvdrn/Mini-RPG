@@ -11,18 +11,18 @@ POTION_PRIJS = 20
 WAPEN_PRIJS = 80
 WAPEN_VERBETERING = 3
 XP_PER_LEVEL = 2
-VIJAND_XP_MULTIPLIER = 2
-VIJAND_HP_PER_LEVEL = 18
+VIJAND_XP_MULTIPLIER = 6
+VIJAND_HP_PER_LEVEL = 8
 VIJAND_AANVAL_PER_LEVEL = 1
 GEVECHT_KANS = 75
 RUST_GENEZING = 8
 BAAS_LEVEL = 30
-BAAS_HP = 1700
-BAAS_GENEZING = 16  # Na elke vijandelijke beurt.
+BAAS_HP = 900
+BAAS_GENEZING = 8  # Na elke vijandelijke beurt.
 EINDBAAS_LEVEL = 100
-EINDBAAS_HP = 12_000
+EINDBAAS_HP = 4500
 EINDBAAS_AANVAL = 105
-EINDBAAS_GENEZING = 45
+EINDBAAS_GENEZING = 15
 VERDEDIGING_PERCENT = 65
 BAAS_WOEDE_MULTIPLIER = 2
 EINDBAAS_WOEDE_MULTIPLIER = 3
@@ -88,7 +88,7 @@ def maak_vijand(speler_level):
         "Draak": {"hp": 90, "aanval": 15, "goud": 35, "xp": 45},
     }[vijand_soort]
     extra_levels = speler_level - 1
-    hp = statistieken["hp"] + extra_levels * VIJAND_HP_PER_LEVEL + extra_levels ** 2 // 4
+    hp = statistieken["hp"] + extra_levels * VIJAND_HP_PER_LEVEL + extra_levels ** 2 // 20
     return {
         "naam": vijand_soort,
         "beurten": 0,
@@ -678,26 +678,37 @@ class MiniRPG:
                 lambda geselecteerd=keuze: self.kies_level_upgrade(geselecteerd),
                 PANEEL_LICHT,
             ).pack(fill="x", pady=4)
+        if len(self.level_keuzes) > 1:
+            self.knop(
+                inhoud,
+                f"Kies {self.level_keuzes[0]} voor alle {len(self.level_keuzes)} levels",
+                lambda geselecteerd=self.level_keuzes[0]: self.kies_level_upgrade(
+                    geselecteerd, alle_levels=True
+                ),
+                GROEN,
+            ).pack(fill="x", pady=(8, 0))
         venster.protocol("WM_DELETE_WINDOW", lambda: None)
         venster.update_idletasks()
         x = self.root.winfo_rootx() + (self.root.winfo_width()-venster.winfo_width())//2
         y = self.root.winfo_rooty() + (self.root.winfo_height()-venster.winfo_height())//2
         venster.geometry(f"+{max(0, x)}+{max(0, y)}")
 
-    def kies_level_upgrade(self, keuze):
+    def kies_level_upgrade(self, keuze, alle_levels=False):
         if not self.level_keuzes:
             return
-        self.level_keuzes.pop(0)
-        if keuze == "hp":
-            self.speler["max_hp"] += LEVEL_HP_UPGRADE
-            self.speler["hp"] = min(
-                self.speler["max_hp"], self.speler["hp"] + LEVEL_HP_UPGRADE
-            )
-        elif keuze == "aanval":
-            self.speler["aanval"] += LEVEL_AANVAL_UPGRADE
-        else:
-            self.speler["verdediging"] += LEVEL_VERDEDIGING_UPGRADE
-        self.level_upgrades.append(keuze)
+        aantal = len(self.level_keuzes) if alle_levels else 1
+        for _ in range(aantal):
+            self.level_keuzes.pop(0)
+            if keuze == "hp":
+                self.speler["max_hp"] += LEVEL_HP_UPGRADE
+                self.speler["hp"] = min(
+                    self.speler["max_hp"], self.speler["hp"] + LEVEL_HP_UPGRADE
+                )
+            elif keuze == "aanval":
+                self.speler["aanval"] += LEVEL_AANVAL_UPGRADE
+            else:
+                self.speler["verdediging"] += LEVEL_VERDEDIGING_UPGRADE
+            self.level_upgrades.append(keuze)
         venster = self.level_keuze_venster
         self.level_keuze_venster = None
         if venster and venster.winfo_exists():
