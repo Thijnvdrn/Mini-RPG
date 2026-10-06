@@ -18,8 +18,13 @@ RUST_GENEZING = 8
 BAAS_LEVEL = 30
 BAAS_HP = 1700
 BAAS_GENEZING = 16  # Na elke vijandelijke beurt.
+EINDBAAS_LEVEL = 100
+EINDBAAS_HP = 12_000
+EINDBAAS_AANVAL = 105
+EINDBAAS_GENEZING = 45
 VERDEDIGING_PERCENT = 65
 BAAS_WOEDE_MULTIPLIER = 2
+EINDBAAS_WOEDE_MULTIPLIER = 3
 NEDERLAAG_GOUD = 100
 LEVEL_HP_UPGRADE = 20
 LEVEL_AANVAL_UPGRADE = 3
@@ -69,6 +74,7 @@ def maak_speler(naam, klasse):
         "level": 1,
         "inventaris": ["Health Potion", "Health Potion"],
         "baas_verslagen": False,
+        "eindbaas_verslagen": False,
         "wapen_upgrades": 0,
     }
 
@@ -100,6 +106,19 @@ def maak_baas(speler_level):
         "naam": "Nachtvorst", "hp": hp, "max_hp": hp,
         "aanval": 38 + extra_levels * 2, "goud": 500, "xp": 1200,
         "baas": True, "woedend": False, "beurten": 0,
+        "genezing": BAAS_GENEZING, "woede_multiplier": BAAS_WOEDE_MULTIPLIER,
+        "speciale_aanval": "Schaduwvuur",
+    }
+
+
+def maak_eindbaas():
+    return {
+        "naam": "Gouden Draak", "hp": EINDBAAS_HP, "max_hp": EINDBAAS_HP,
+        "aanval": EINDBAAS_AANVAL, "goud": 10_000, "xp": 0,
+        "baas": True, "eindbaas": True, "woedend": False, "beurten": 0,
+        "genezing": EINDBAAS_GENEZING,
+        "woede_multiplier": EINDBAAS_WOEDE_MULTIPLIER,
+        "speciale_aanval": "Gouden vuur",
     }
 
 
@@ -113,6 +132,7 @@ class MiniRPG:
         self.speler = None
         self.vijand = None
         self.gevecht = False
+        self.spel_uitgespeeld = False
         self.level_keuzes = []
         self.level_upgrades = []
         self.level_keuze_venster = None
@@ -271,6 +291,7 @@ class MiniRPG:
             self.naam_invoer.focus_set()
             return
         self.speler = maak_speler(naam, self.klasse_keuze.get())
+        self.spel_uitgespeeld = False
         self.level_keuzes = []
         self.level_upgrades = []
         if naam.casefold() == "baas":
@@ -470,14 +491,26 @@ class MiniRPG:
         self.teken_scène()
 
     def start_baasgevecht(self):
-        if (self.gevecht or self.speler["level"] < BAAS_LEVEL
-                or self.speler["baas_verslagen"]):
+        if self.gevecht or self.spel_uitgespeeld:
             return False
-        self.vijand = maak_baas(self.speler["level"])
+        if (self.speler["level"] >= EINDBAAS_LEVEL
+                and not self.speler.get("eindbaas_verslagen", False)):
+            self.vijand = maak_eindbaas()
+            self.log("De Gouden Draak daalt neer! Dit is je laatste gevecht.")
+            self.log(
+                f"Gouden vuur elke derde beurt; bij halve HP wordt hij woedend "
+                f"en doet {EINDBAAS_WOEDE_MULTIPLIER}× schade."
+            )
+        elif self.speler["level"] >= BAAS_LEVEL and not self.speler["baas_verslagen"]:
+            self.vijand = maak_baas(self.speler["level"])
+            self.log("Baasgevecht! De Nachtvorst daalt neer tussen de bomen.")
+            self.log("Elke derde beurt: schaduwvuur! Bij halve HP wordt hij woedend: 2× schade.")
+        else:
+            return False
         self.gevecht = True
-        self.log("Baasgevecht! De Nachtvorst daalt neer tussen de bomen.")
-        self.log("Elke derde beurt: schaduwvuur! Bij halve HP wordt hij woedend: 2× schade.")
-        self.log(f"De Nachtvorst geneest {BAAS_GENEZING} HP per beurt. Verdedig tegen schaduwvuur.")
+        self.log(
+            f"De {self.vijand['naam']} geneest {self.vijand['genezing']} HP per beurt."
+        )
         self.update_status()
         self.update_acties()
         self.teken_scène()
@@ -532,7 +565,11 @@ class MiniRPG:
 
     def verwerk_beurt(self):
         if self.vijand["hp"] == 0:
-            if self.vijand.get("baas"):
+            eindbaas_verslagen = self.vijand.get("eindbaas", False)
+            if eindbaas_verslagen:
+                self.speler["eindbaas_verslagen"] = True
+                self.spel_uitgespeeld = True
+            elif self.vijand.get("baas"):
                 self.speler["baas_verslagen"] = True
                 self.log("De Nachtvorst is verslagen! Het maanwoud is weer vrij.")
             self.speler["goud"] += self.vijand["goud"]
@@ -542,6 +579,9 @@ class MiniRPG:
             )
             self.gevecht = False
             self.vijand = None
+            if eindbaas_verslagen:
+                self.toon_eindscherm()
+                return
             self.controleer_level()
             self.update_status()
             self.update_acties()
@@ -560,21 +600,24 @@ class MiniRPG:
         self.vijand["beurten"] += 1
         if self.vijand.get("baas") and self.vijand["hp"] <= self.vijand["max_hp"] / 2:
             if not self.vijand["woedend"]:
-                self.log("De Nachtvorst wordt woedend! Zijn aanvallen doen 2× schade.")
+                self.log(
+                    f"De {self.vijand['naam']} wordt woedend! Zijn aanvallen doen "
+                    f"{self.vijand['woede_multiplier']}× schade."
+                )
             self.vijand["woedend"] = True
-        schaduwvuur = self.vijand["beurten"] % 3 == 0
-        if schaduwvuur:
+        speciale_aanval = self.vijand["beurten"] % 3 == 0
+        if speciale_aanval:
             aanval = aanval * 3 // 2
         schade = random.randint(aanval - 2, aanval + 2)
         if self.vijand.get("woedend"):
-            schade *= BAAS_WOEDE_MULTIPLIER
+            schade *= self.vijand.get("woede_multiplier", BAAS_WOEDE_MULTIPLIER)
         schade = max(1, schade - self.speler.get("verdediging", 0))
         if verdedigd:
             schade = max(1, schade * (100 - VERDEDIGING_PERCENT) // 100)
         self.speler["hp"] = max(0, self.speler["hp"] - schade)
         self.log(f"De {self.vijand['naam']} doet {schade} schade"
-                 + ((" met schaduwvuur!" if self.vijand.get("baas") else " met een zware aanval!")
-                    if schaduwvuur else "."))
+                 + (f" met {self.vijand.get('speciale_aanval', 'een zware aanval').lower()}!"
+                    if speciale_aanval else "."))
         if self.speler["hp"] == 0:
             self.gevecht = False
             self.vijand = None
@@ -585,14 +628,18 @@ class MiniRPG:
             self.toon_verliespagina(verloren_goud, verloren_level)
             return
         if self.gevecht and self.vijand.get("baas"):
-            self.vijand["hp"] = min(self.vijand["max_hp"], self.vijand["hp"] + BAAS_GENEZING)
+            self.vijand["hp"] = min(
+                self.vijand["max_hp"],
+                self.vijand["hp"] + self.vijand.get("genezing", BAAS_GENEZING),
+            )
         self.update_status()
         self.update_acties()
         self.teken_scène()
         self.toon_effect(f"−{schade}", .28, ROOD)
 
     def controleer_level(self):
-        while self.speler["xp"] >= xp_voor_level(self.speler["level"]):
+        while (self.speler["level"] < EINDBAAS_LEVEL
+               and self.speler["xp"] >= xp_voor_level(self.speler["level"])):
             self.speler["xp"] -= xp_voor_level(self.speler["level"])
             self.speler["level"] += 1
             self.level_keuzes.append(self.speler["level"])
@@ -705,6 +752,26 @@ class MiniRPG:
             self.update_status()
             self.update_acties()
             self.teken_scène()
+
+    def toon_eindscherm(self):
+        messagebox.showinfo(
+            "👑 Je hebt het spel uitgespeeld!",
+            f"Gefeliciteerd, {self.speler['naam']}! Je hebt de Gouden Draak verslagen "
+            "en het spel uitgespeeld.\n\nBedankt voor het spelen! 👑",
+            parent=self.root,
+        )
+        self.wis_scherm()
+        achtergrond = tk.Canvas(self.root, bg=ACHTERGROND, highlightthickness=0)
+        achtergrond.place(relwidth=1, relheight=1)
+        achtergrond.bind("<Configure>", lambda e: landschap(achtergrond, e.width, e.height))
+        kaart = tk.Frame(self.root, bg=PANEEL, padx=42, pady=36,
+                         highlightthickness=1, highlightbackground=GOUD)
+        kaart.place(relx=0.5, rely=0.5, anchor="center")
+        self.label(kaart, "👑", 42, GOUD, True).pack(pady=(0, 8))
+        self.label(kaart, "SPEL UITGESPEELD!", 24, GOUD, True).pack()
+        self.label(kaart, "Je hebt de Gouden Draak verslagen.", 13).pack(pady=(8, 4))
+        self.label(kaart, "Bedankt voor het spelen!", 13, GEDIMD).pack(pady=(0, 20))
+        self.knop(kaart, "Terug naar het beginscherm", self.toon_startscherm, GROEN).pack(fill="x")
 
     def bezoek_winkel(self):
         if self.gevecht:
@@ -833,7 +900,10 @@ class MiniRPG:
             if baasgevecht:
                 self.vijand_frame.pack_forget()
                 volgende = (self.vijand["beurten"] + 1) % 3 == 0
-                baas_balk(canvas, breedte, self.vijand, volgende, BAAS_GENEZING)
+                baas_balk(
+                    canvas, breedte, self.vijand, volgende,
+                    self.vijand.get("genezing", BAAS_GENEZING),
+                )
             else:
                 self.vijand_frame.pack(fill="x", before=self.gebeurtenissen.master)
             self.vijand_balk.configure(maximum=self.vijand["max_hp"], value=self.vijand["hp"])
@@ -843,8 +913,13 @@ class MiniRPG:
             self.vijand_hp.configure(text=f"{self.vijand['hp']} / {self.vijand['max_hp']} HP")
         else:
             self.vijand_frame.pack_forget()
+            volgende_baas = (
+                f"De Gouden Draak verschijnt op level {EINDBAAS_LEVEL}"
+                if self.speler["baas_verslagen"]
+                else f"De Nachtvorst verschijnt op level {BAAS_LEVEL}"
+            )
             canvas.create_text(breedte*.5, hoogte-16,
-                               text=f"Klik op Verkennen / De Nachtvorst verschijnt op level {BAAS_LEVEL}",
+                               text=f"Klik op Verkennen / {volgende_baas}",
                                fill=TEKST, font=("Segoe UI", 10))
 
 

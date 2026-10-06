@@ -7,7 +7,9 @@ from unittest.mock import patch
 from main import (MiniRPG, maak_vijand, maak_speler, xp_voor_level, wapen_prijs, wapen_limiet,
                   BAAS_LEVEL, BAAS_HP, BAAS_GENEZING, LEVEL_HP_UPGRADE,
                   LEVEL_AANVAL_UPGRADE, LEVEL_VERDEDIGING_UPGRADE,
-                  WAPEN_VERBETERING, KLASSEN, NEDERLAAG_GOUD)
+                  WAPEN_VERBETERING, KLASSEN, NEDERLAAG_GOUD,
+                  EINDBAAS_LEVEL, EINDBAAS_HP, EINDBAAS_AANVAL,
+                  EINDBAAS_GENEZING, maak_eindbaas)
 
 
 class BaasgevechtTests(unittest.TestCase):
@@ -167,6 +169,40 @@ class BaasgevechtTests(unittest.TestCase):
             self.app.verken()
         self.assertFalse(self.app.vijand.get("baas", False))
 
+    def test_level_100_start_gouden_draak_als_eindbaas(self):
+        self.app.speler.update(level=EINDBAAS_LEVEL, baas_verslagen=True)
+        self.assertTrue(self.app.start_baasgevecht())
+        self.assertEqual(self.app.vijand, maak_eindbaas())
+        self.assertEqual(self.app.vijand["naam"], "Gouden Draak")
+        self.assertTrue(self.app.vijand["eindbaas"])
+        self.assertEqual(self.app.vijand["hp"], EINDBAAS_HP)
+        self.assertEqual(self.app.vijand["aanval"], EINDBAAS_AANVAL)
+        self.assertEqual(self.app.vijand["genezing"], EINDBAAS_GENEZING)
+
+    def test_gouden_draak_verslaan_toont_eindmelding_met_bedankje(self):
+        self.app.speler.update(level=EINDBAAS_LEVEL, baas_verslagen=True)
+        self.app.start_baasgevecht()
+        self.app.vijand["hp"] = 0
+        with patch("main.messagebox.showinfo") as melding:
+            self.app.verwerk_beurt()
+        self.assertTrue(self.app.spel_uitgespeeld)
+        self.assertTrue(self.app.speler["eindbaas_verslagen"])
+        self.assertFalse(self.app.gevecht)
+        self.assertIsNone(self.app.vijand)
+        melding.assert_called_once()
+        self.assertIn("👑", melding.call_args.args[0])
+        self.assertIn("Bedankt voor het spelen", melding.call_args.args[1])
+        self.assertFalse(self.app.start_baasgevecht())
+
+    def test_level_is_afgetopt_op_100(self):
+        self.app.speler.update(
+            level=EINDBAAS_LEVEL, xp=xp_voor_level(EINDBAAS_LEVEL) + 1000,
+            baas_verslagen=True, eindbaas_verslagen=True,
+        )
+        self.app.controleer_level()
+        self.assertEqual(self.app.speler["level"], EINDBAAS_LEVEL)
+        self.assertEqual(self.app.speler["xp"], xp_voor_level(EINDBAAS_LEVEL) + 1000)
+
     def test_hp_balk_volgt_schade_en_past_in_venster(self):
         self.start_baas()
         self.app.vijand["hp"] = BAAS_HP // 2
@@ -186,6 +222,18 @@ class BaasgevechtTests(unittest.TestCase):
                                  self.root.winfo_rootx() + self.root.winfo_width())
             self.assertLessEqual(knop.winfo_rooty() + knop.winfo_height(),
                                  self.root.winfo_rooty() + self.root.winfo_height())
+
+    def test_gouden_draak_wordt_met_kroon_in_baas_hud_getoond(self):
+        self.app.speler.update(level=EINDBAAS_LEVEL, baas_verslagen=True)
+        self.app.start_baasgevecht()
+        self.root.update()
+        hud_tekst = [
+            self.app.scène.itemcget(item, "text")
+            for item in self.app.scène.find_withtag("baas_hud")
+            if self.app.scène.type(item) == "text"
+        ]
+        self.assertTrue(any("👑 GOUDEN DRAAK" in tekst for tekst in hud_tekst))
+        self.assertTrue(any("Gouden vuur elke derde beurt" in tekst for tekst in hud_tekst))
 
 
 
@@ -327,7 +375,10 @@ class ProgressieTests(unittest.TestCase):
 
     def test_route_duurt_minstens_tweemaal_zo_lang(self):
         oud = sum(level*80/(95/3+(level-1)*5) for level in range(1,20))
-        nieuw = sum(xp_voor_level(level)/(95/3+(level-1)*5) for level in range(1,BAAS_LEVEL))
+        nieuw = sum(
+            xp_voor_level(level)/(95/3+(level-1)*5)
+            for level in range(1, EINDBAAS_LEVEL)
+        )
         self.assertGreater(nieuw, oud*2)
 
 

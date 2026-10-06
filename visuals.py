@@ -65,7 +65,9 @@ def baas_balk(canvas, breedte, vijand, schaduwvuur=False, genezing=12):
     tag = "baas_hud"
     canvas.create_rectangle(links-16, 12, rechts+16, 114, fill="#1e202b",
                             outline="#ae795e", width=2, tags=tag)
-    canvas.create_text(breedte/2, 30, text="NACHTVORST  ·  HEERSER VAN HET MAANWOUD",
+    titel = ("👑 GOUDEN DRAAK  ·  DE LAATSTE BEPROEVING"
+             if vijand.get("eindbaas") else "NACHTVORST  ·  HEERSER VAN HET MAANWOUD")
+    canvas.create_text(breedte/2, 30, text=titel,
                        fill="#f2c66d", font=("Segoe UI", 12, "bold"), tags=tag)
     canvas.create_rectangle(links, 46, rechts, 66, fill="#382b36",
                             outline="#79555b", tags=tag)
@@ -76,8 +78,13 @@ def baas_balk(canvas, breedte, vijand, schaduwvuur=False, genezing=12):
                                 outline="", tags="baas_hp")
     canvas.create_text(breedte/2, 56, text=f"{vijand['hp']} / {vijand['max_hp']} HP",
                        fill="#fff0de", font=("Segoe UI", 9, "bold"), tags=tag)
-    fase = "WOEDEND  ·  2× schade" if vijand["woedend"] else "FASE I  ·  De schaduw ontwaakt"
-    waarschuwing = "SCHADUWVUUR: VOLGENDE BEURT!" if schaduwvuur else "Schaduwvuur elke derde beurt"
+    multiplier = vijand.get("woede_multiplier", 2)
+    fase = f"WOEDEND  ·  {multiplier}× schade" if vijand["woedend"] else "FASE I  ·  De schaduw ontwaakt"
+    speciaal = vijand.get("speciale_aanval", "Schaduwvuur")
+    waarschuwing = (
+        f"{speciaal.upper()}: VOLGENDE BEURT!" if schaduwvuur
+        else f"{speciaal} elke derde beurt"
+    )
     canvas.create_text(breedte/2, 83, text=f"{fase}   |   {waarschuwing}",
                        fill="#ffbd86" if schaduwvuur else "#c6afaa",
                        font=("Segoe UI", 9), tags=tag)
@@ -132,15 +139,16 @@ def personage(canvas, x, y, soort, schaal=1):
             lijn([-23,-52,-21,-30], "#dfb878", 2)
         lijn([-14,-27,14,-27], "#be9c64", 4)
         oval([-3,-30,3,-24], "#f0d494")
-    elif soort in ("Draak", "Nachtvorst"):
-        baas = soort == "Nachtvorst"
-        vleugel = "#493d62" if baas else "#8c4e55"
-        huid = "#655473" if baas else "#ab615a"
-        rand = "#d7a872" if baas else "#ca7b68"
+    elif soort in ("Draak", "Nachtvorst", "Gouden Draak"):
+        baas = soort in ("Nachtvorst", "Gouden Draak")
+        gouden = soort == "Gouden Draak"
+        vleugel = "#a77b22" if gouden else "#493d62" if baas else "#8c4e55"
+        huid = "#e1ad35" if gouden else "#655473" if baas else "#ab615a"
+        rand = "#fff0a1" if gouden else "#d7a872" if baas else "#ca7b68"
         if baas:
-            oval([-68,-126,68,7], "#29303e")
-            poly([-20,-76,-34,-104,-32,-40], "#d7a872")
-            poly([20,-76,35,-104,32,-40], "#d7a872")
+            oval([-68,-126,68,7], "#574522" if gouden else "#29303e")
+            poly([-20,-76,-34,-104,-32,-40], "#fff0a1" if gouden else "#d7a872")
+            poly([20,-76,35,-104,32,-40], "#fff0a1" if gouden else "#d7a872")
         poly([-14,-68,-69,-122,-62,-53,-33,-29], vleugel, rand)
         poly([9,-70,60,-121,70,-57,34,-28], vleugel, rand)
         lijn([-16,-68,-60,-104], "#bf7666", 2)
@@ -159,10 +167,10 @@ def personage(canvas, x, y, soort, schaal=1):
         lijn([-17,-76,17,-76], "#5b343d", 3)
         if baas:
             poly([-22,-110,-27,-135,-10,-123,0,-138,10,-123,27,-135,22,-109],
-                 "#d7a872", "#f4d699")
-            oval([-4,-126,4,-118], "#b34e67")
+                 "#f2c34e" if gouden else "#d7a872", "#fff0a1" if gouden else "#f4d699")
+            oval([-4,-126,4,-118], "#f8edca" if gouden else "#b34e67")
             for hoogte in (-54, -40, -26):
-                lijn([-9,hoogte,9,hoogte], "#796277", 2)
+                lijn([-9,hoogte,9,hoogte], "#fff0a1" if gouden else "#796277", 2)
     else:
         orc = soort == "Orc"
         huid = "#789071" if orc else "#8ca775"

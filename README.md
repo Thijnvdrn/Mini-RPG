@@ -1,6 +1,6 @@
 # Mini-RPG — De Wildernis
 
-Welkom in **De Wildernis**, een kleine Nederlandstalige RPG die met Python en Tkinter is gemaakt. Kies een held, verken een maanverlicht bos en word sterk genoeg om de Nachtvorst te verslaan. Deze README legt uit hoe je het spel start, hoe het werkt en waar je de verschillende onderdelen van de code kunt vinden.
+Welkom in **De Wildernis**, een kleine Nederlandstalige RPG die met Python en Tkinter is gemaakt. Kies een held, verken een maanverlicht bos en word sterk genoeg om de Nachtvorst en de Gouden Draak te verslaan. Deze README legt uit hoe je het spel start, hoe het werkt en waar je de verschillende onderdelen van de code kunt vinden.
 
 ## Starten
 
@@ -36,7 +36,7 @@ Op level 30 verschijnt de Nachtvorst: direct wanneer je die grens bereikt na een
 
 Elke derde beurt gebruikt hij schaduwvuur met 150% aanvalskracht. Zodra hij bij zijn aanval op halve HP of lager staat, wordt hij blijvend woedend en doet hij dubbele schade. Let op de waarschuwing en plan je verdediging en potions. Vluchten lukt met 35% kans. Na vluchten kun je hem via Verkennen opnieuw uitdagen; na een nederlaag moet je eerst terug level 30 bereiken.
 
-Een overwinning geeft eenmalig 500 goud en 1200 XP. Boven level 30 krijgt de Nachtvorst per extra level 30 HP en 2 aanval. Je voortgang wordt niet opgeslagen wanneer je het spel afsluit. De testnaam `Baas` begint op level 29 met 10.000 goud; ook dan geldt de upgradegrens.
+Je kunt doorgroeien tot level 100. Op dat level wacht de eindbaas: de **Gouden Draak**, met 12.000 HP, 105 aanval en 45 HP zelfgenezing per beurt. Elke derde beurt gebruikt hij Gouden vuur; onder halve HP wordt hij woedend en doet hij 3× schade. Bereid je voor met level-upgrades, wapens en potions. Versla de draak om het spel uit te spelen: je krijgt een kroonmelding en een bedankje. Een overwinning op de Nachtvorst geeft eenmalig 500 goud en 1200 XP. Je voortgang wordt niet opgeslagen wanneer je het spel afsluit. De testnaam `Baas` begint op level 29 met 10.000 goud; ook dan geldt de upgradegrens.
 
 ## Hoe de code is opgebouwd
 
