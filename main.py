@@ -11,17 +11,19 @@ POTION_PRIJS = 20
 WAPEN_PRIJS = 80
 WAPEN_VERBETERING = 3
 XP_PER_LEVEL = 100
-HP_PER_LEVEL = 12
-AANVAL_PER_LEVEL = 2
-VIJAND_HP_PER_LEVEL = 14
+VIJAND_HP_PER_LEVEL = 18
 VIJAND_AANVAL_PER_LEVEL = 1
 GEVECHT_KANS = 75
 RUST_GENEZING = 8
 BAAS_LEVEL = 30
-BAAS_HP = 1400
-BAAS_GENEZING = 12  # Na elke vijandelijke beurt.
+BAAS_HP = 1700
+BAAS_GENEZING = 16  # Na elke vijandelijke beurt.
 VERDEDIGING_PERCENT = 65
 BAAS_WOEDE_MULTIPLIER = 2
+NEDERLAAG_GOUD = 100
+LEVEL_HP_UPGRADE = 20
+LEVEL_AANVAL_UPGRADE = 3
+LEVEL_VERDEDIGING_UPGRADE = 1
 
 ACHTERGROND = "#0d171e"
 PANEEL = "#17272e"
@@ -60,6 +62,7 @@ def maak_speler(naam, klasse):
         "hp": statistieken["hp"],
         "max_hp": statistieken["hp"],
         "aanval": statistieken["aanval"],
+        "verdediging": 0,
         "kritieke_kans": statistieken["kritieke_kans"],
         "goud": 20,
         "xp": 0,
@@ -95,7 +98,7 @@ def maak_baas(speler_level):
     hp = BAAS_HP + extra_levels * 30
     return {
         "naam": "Nachtvorst", "hp": hp, "max_hp": hp,
-        "aanval": 34 + extra_levels * 2, "goud": 500, "xp": 1200,
+        "aanval": 38 + extra_levels * 2, "goud": 500, "xp": 1200,
         "baas": True, "woedend": False, "beurten": 0,
     }
 
@@ -110,6 +113,9 @@ class MiniRPG:
         self.speler = None
         self.vijand = None
         self.gevecht = False
+        self.level_keuzes = []
+        self.level_upgrades = []
+        self.level_keuze_venster = None
         self.animaties = set()
         self.maak_stijl()
         self.toon_startscherm()
@@ -145,6 +151,7 @@ class MiniRPG:
         for taak in self.animaties:
             self.root.after_cancel(taak)
         self.animaties.clear()
+        self.level_keuze_venster = None
         for widget in self.root.winfo_children():
             widget.destroy()
 
@@ -264,12 +271,21 @@ class MiniRPG:
             self.naam_invoer.focus_set()
             return
         self.speler = maak_speler(naam, self.klasse_keuze.get())
+        self.level_keuzes = []
+        self.level_upgrades = []
         if naam.casefold() == "baas":
             self.speler["level"] = BAAS_LEVEL - 1
             self.speler["goud"] = 10_000
-            self.speler["max_hp"] += (BAAS_LEVEL - 2) * HP_PER_LEVEL
-            self.speler["hp"] = self.speler["max_hp"]
-            self.speler["aanval"] += (BAAS_LEVEL - 2) * AANVAL_PER_LEVEL
+            for index in range(BAAS_LEVEL - 2):
+                keuze = ("hp", "aanval", "verdediging")[index % 3]
+                self.level_upgrades.append(keuze)
+                if keuze == "hp":
+                    self.speler["max_hp"] += LEVEL_HP_UPGRADE
+                    self.speler["hp"] += LEVEL_HP_UPGRADE
+                elif keuze == "aanval":
+                    self.speler["aanval"] += LEVEL_AANVAL_UPGRADE
+                else:
+                    self.speler["verdediging"] += LEVEL_VERDEDIGING_UPGRADE
         self.gevecht = False
         self.vijand = None
         self.toon_spelscherm()
@@ -393,7 +409,9 @@ class MiniRPG:
         self.xp_tekst.configure(text=f"ERVARING   {speler['xp']} / {xp_nodig} XP")
         self.xp_balk.configure(maximum=xp_nodig, value=speler["xp"])
         self.statistieken.configure(
-            text=f"Aanval     {speler['aanval']}\nKritiek     {speler['kritieke_kans']}%"
+            text=f"Aanval     {speler['aanval']}\n"
+                 f"Verdediging  {speler['verdediging']}\n"
+                 f"Kritiek     {speler['kritieke_kans']}%"
         )
         potions = speler["inventaris"].count("Health Potion")
         self.inventaris_tekst.configure(
@@ -550,6 +568,7 @@ class MiniRPG:
         schade = random.randint(aanval - 2, aanval + 2)
         if self.vijand.get("woedend"):
             schade *= BAAS_WOEDE_MULTIPLIER
+        schade = max(1, schade - self.speler.get("verdediging", 0))
         if verdedigd:
             schade = max(1, schade * (100 - VERDEDIGING_PERCENT) // 100)
         self.speler["hp"] = max(0, self.speler["hp"] - schade)
@@ -560,12 +579,11 @@ class MiniRPG:
             self.gevecht = False
             self.vijand = None
             verloren_goud = self.speler["goud"]
-            self.speler["goud"] = 0
+            verloren_level = self.verlies_level()
+            self.speler["goud"] = NEDERLAAG_GOUD
             self.speler["hp"] = self.speler["max_hp"]
-            self.log(
-                f"Je bent verslagen en verliest {verloren_goud} goud. "
-                "Je herstelt met volle HP en kunt verder op avontuur."
-            )
+            self.toon_verliespagina(verloren_goud, verloren_level)
+            return
         if self.gevecht and self.vijand.get("baas"):
             self.vijand["hp"] = min(self.vijand["max_hp"], self.vijand["hp"] + BAAS_GENEZING)
         self.update_status()
@@ -577,13 +595,116 @@ class MiniRPG:
         while self.speler["xp"] >= xp_voor_level(self.speler["level"]):
             self.speler["xp"] -= xp_voor_level(self.speler["level"])
             self.speler["level"] += 1
-            self.speler["max_hp"] += HP_PER_LEVEL
-            self.speler["aanval"] += AANVAL_PER_LEVEL
-            self.log(
-                f"Level omhoog! Level {self.speler['level']}: +{HP_PER_LEVEL} Max HP, "
-                f"+{AANVAL_PER_LEVEL} aanval."
+            self.level_keuzes.append(self.speler["level"])
+            self.log(f"Level omhoog! Je bent nu level {self.speler['level']}. Kies een upgrade.")
+        if self.level_keuzes:
+            self.toon_level_keuze()
+        else:
+            self.start_baasgevecht()
+
+    def toon_level_keuze(self):
+        if not self.level_keuzes or self.level_keuze_venster:
+            return
+        level = self.level_keuzes[0]
+        venster = tk.Toplevel(self.root)
+        self.level_keuze_venster = venster
+        venster.title("Level omhoog!")
+        venster.configure(bg=PANEEL)
+        venster.resizable(False, False)
+        venster.transient(self.root)
+        venster.grab_set()
+        inhoud = tk.Frame(venster, bg=PANEEL, padx=24, pady=22)
+        inhoud.pack(fill="both", expand=True)
+        self.label(inhoud, f"LEVEL {level}", 10, GOUD, True).pack(anchor="w")
+        self.label(inhoud, "Kies je upgrade", 21, vet=True).pack(anchor="w", pady=(4, 8))
+        self.label(inhoud, "Deze bonus geldt meteen en blijft bij je volgende levels.",
+                   10, GEDIMD).pack(anchor="w", pady=(0, 14))
+        keuzes = [
+            ("Levenskracht", f"+{LEVEL_HP_UPGRADE} Max HP en HP", "hp"),
+            ("Aanval", f"+{LEVEL_AANVAL_UPGRADE} aanval", "aanval"),
+            ("Verdediging", f"+{LEVEL_VERDEDIGING_UPGRADE} verdediging per treffer", "verdediging"),
+        ]
+        for naam, bonus, keuze in keuzes:
+            self.knop(
+                inhoud, f"{naam}  ·  {bonus}",
+                lambda geselecteerd=keuze: self.kies_level_upgrade(geselecteerd),
+                PANEEL_LICHT,
+            ).pack(fill="x", pady=4)
+        venster.protocol("WM_DELETE_WINDOW", lambda: None)
+        venster.update_idletasks()
+        x = self.root.winfo_rootx() + (self.root.winfo_width()-venster.winfo_width())//2
+        y = self.root.winfo_rooty() + (self.root.winfo_height()-venster.winfo_height())//2
+        venster.geometry(f"+{max(0, x)}+{max(0, y)}")
+
+    def kies_level_upgrade(self, keuze):
+        if not self.level_keuzes:
+            return
+        self.level_keuzes.pop(0)
+        if keuze == "hp":
+            self.speler["max_hp"] += LEVEL_HP_UPGRADE
+            self.speler["hp"] = min(
+                self.speler["max_hp"], self.speler["hp"] + LEVEL_HP_UPGRADE
             )
-        self.start_baasgevecht()
+        elif keuze == "aanval":
+            self.speler["aanval"] += LEVEL_AANVAL_UPGRADE
+        else:
+            self.speler["verdediging"] += LEVEL_VERDEDIGING_UPGRADE
+        self.level_upgrades.append(keuze)
+        venster = self.level_keuze_venster
+        self.level_keuze_venster = None
+        if venster and venster.winfo_exists():
+            venster.destroy()
+        self.update_status()
+        if self.level_keuzes:
+            self.toon_level_keuze()
+        elif not self.start_baasgevecht():
+            self.update_acties()
+            self.teken_scène()
+
+    def verlies_level(self):
+        if self.speler["level"] <= 1:
+            return False
+        self.speler["level"] -= 1
+        if self.level_upgrades:
+            keuze = self.level_upgrades.pop()
+            if keuze == "hp":
+                self.speler["max_hp"] -= LEVEL_HP_UPGRADE
+            elif keuze == "aanval":
+                self.speler["aanval"] -= LEVEL_AANVAL_UPGRADE
+            else:
+                self.speler["verdediging"] -= LEVEL_VERDEDIGING_UPGRADE
+        return True
+
+    def toon_verliespagina(self, verloren_goud, verloren_level):
+        self.wis_scherm()
+        achtergrond = tk.Canvas(self.root, bg=ACHTERGROND, highlightthickness=0)
+        achtergrond.place(relwidth=1, relheight=1)
+        achtergrond.bind("<Configure>", lambda e: landschap(achtergrond, e.width, e.height))
+        kaart = tk.Frame(self.root, bg=PANEEL, padx=40, pady=34,
+                         highlightthickness=1, highlightbackground="#72504c")
+        kaart.place(relx=0.5, rely=0.5, anchor="center")
+        self.label(kaart, "JE HEBT VERLOREN", 25, ROOD, True).pack(pady=(0, 12))
+        if verloren_level:
+            self.label(kaart, "Je verliest een level en de bijbehorende upgrade.", 12).pack()
+        else:
+            self.label(kaart, "Je bent op level 1 gebleven.", 12).pack()
+        self.label(
+            kaart,
+            f"Je verloren goud: {verloren_goud}  ·  Herstelgeld: {NEDERLAAG_GOUD}",
+            11, GOUD,
+        ).pack(pady=(8, 18))
+        self.knop(kaart, "Verder naar het woud", self.verder_na_verlies, GROEN).pack(fill="x")
+
+    def verder_na_verlies(self):
+        self.toon_spelscherm()
+        self.log(
+            f"Je bent hersteld op level {self.speler['level']} met "
+            f"{NEDERLAAG_GOUD} goud. Bezoek de handelaar en word sterker."
+        )
+        if not self.start_baasgevecht():
+            self.update_status()
+            self.update_acties()
+            self.teken_scène()
 
     def bezoek_winkel(self):
         if self.gevecht:
