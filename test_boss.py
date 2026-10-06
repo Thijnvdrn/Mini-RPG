@@ -9,7 +9,7 @@ from main import (MiniRPG, maak_vijand, maak_speler, xp_voor_level, wapen_prijs,
                   LEVEL_AANVAL_UPGRADE, LEVEL_VERDEDIGING_UPGRADE,
                   WAPEN_VERBETERING, KLASSEN, NEDERLAAG_GOUD,
                   EINDBAAS_LEVEL, EINDBAAS_HP, EINDBAAS_AANVAL,
-                  EINDBAAS_GENEZING, maak_eindbaas)
+                  EINDBAAS_GENEZING, VIJAND_XP_MULTIPLIER, maak_eindbaas)
 
 
 class BaasgevechtTests(unittest.TestCase):
@@ -159,11 +159,15 @@ class BaasgevechtTests(unittest.TestCase):
         goud = self.app.speler["goud"]
         self.app.vijand["hp"] = 0
         self.app.verwerk_beurt()
-        self.kies_level("Levenskracht")
+        while self.app.level_keuzes:
+            self.kies_level("Levenskracht")
         self.assertTrue(self.app.speler["baas_verslagen"])
         self.assertEqual(self.app.speler["goud"], goud + 500)
-        self.assertEqual(self.app.speler["level"], BAAS_LEVEL+1)
-        self.assertEqual(self.app.speler["xp"], xp_voor_level(BAAS_LEVEL-1)-20+1200-xp_voor_level(BAAS_LEVEL))
+        self.assertGreater(self.app.speler["level"], BAAS_LEVEL + 1)
+        self.assertLess(self.app.speler["level"], EINDBAAS_LEVEL)
+        self.assertLess(
+            self.app.speler["xp"], xp_voor_level(self.app.speler["level"])
+        )
         self.assertFalse(self.app.gevecht)
         with patch("main.random.randint", return_value=1):
             self.app.verken()
@@ -239,10 +243,11 @@ class BaasgevechtTests(unittest.TestCase):
 
 
     def test_levelen_met_gematigde_xp_drempel(self):
-        self.app.speler.update(level=1, xp=99, hp=100, max_hp=120, aanval=18)
+        self.app.speler.update(level=1, xp=xp_voor_level(1)-1,
+                               hp=100, max_hp=120, aanval=18)
         self.app.controleer_level()
         self.assertEqual(self.app.speler["level"], 1)
-        self.app.speler["xp"] = 100
+        self.app.speler["xp"] = xp_voor_level(1)
         self.app.controleer_level()
         self.assertEqual(self.app.speler["level"], 2)
         self.kies_level("Verdediging")
@@ -252,7 +257,10 @@ class BaasgevechtTests(unittest.TestCase):
         self.assertEqual(self.app.speler["hp"], 100)
 
     def test_meerdere_levels_geven_afzonderlijke_upgradekeuzes(self):
-        self.app.speler.update(level=1, xp=304, hp=30, max_hp=120, aanval=18)
+        self.app.speler.update(
+            level=1, xp=xp_voor_level(1) + xp_voor_level(2),
+            hp=30, max_hp=120, aanval=18,
+        )
         self.app.controleer_level()
         self.assertEqual(self.app.speler["level"], 3)
         self.assertEqual(self.app.level_keuzes, [2, 3])
@@ -373,13 +381,22 @@ class ProgressieTests(unittest.TestCase):
                         if level >= 20:
                             self.assertGreaterEqual(vijand['hp'], 4*(aanval+3))
 
-    def test_route_duurt_minstens_tweemaal_zo_lang(self):
-        oud = sum(level*80/(95/3+(level-1)*5) for level in range(1,20))
-        nieuw = sum(
-            xp_voor_level(level)/(95/3+(level-1)*5)
-            for level in range(1, EINDBAAS_LEVEL)
-        )
-        self.assertGreater(nieuw, oud*2)
+    def test_level_100_bereikbaar_in_maximaal_20_gevechten(self):
+        level = 1
+        xp = 0
+        gevechten = 0
+        nachtvorst_verslagen = False
+        while level < EINDBAAS_LEVEL:
+            if level >= BAAS_LEVEL and not nachtvorst_verslagen:
+                xp += 1200
+                nachtvorst_verslagen = True
+            else:
+                xp += (20 + (level - 1) * 5) * VIJAND_XP_MULTIPLIER
+            gevechten += 1
+            while level < EINDBAAS_LEVEL and xp >= xp_voor_level(level):
+                xp -= xp_voor_level(level)
+                level += 1
+        self.assertLessEqual(gevechten, 20)
 
 
 if __name__ == "__main__":

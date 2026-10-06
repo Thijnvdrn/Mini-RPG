@@ -10,7 +10,8 @@ POTION_GENEZING_PERCENT = 50
 POTION_PRIJS = 20
 WAPEN_PRIJS = 80
 WAPEN_VERBETERING = 3
-XP_PER_LEVEL = 100
+XP_PER_LEVEL = 2
+VIJAND_XP_MULTIPLIER = 2
 VIJAND_HP_PER_LEVEL = 18
 VIJAND_AANVAL_PER_LEVEL = 1
 GEVECHT_KANS = 75
@@ -47,7 +48,7 @@ KLASSEN = {
 
 
 def xp_voor_level(level):
-    return level * XP_PER_LEVEL + (level - 1) ** 2 * 4
+    return level * XP_PER_LEVEL
 
 
 def wapen_prijs(speler):
@@ -95,7 +96,7 @@ def maak_vijand(speler_level):
         "max_hp": hp,
         "aanval": statistieken["aanval"] + extra_levels * VIJAND_AANVAL_PER_LEVEL + extra_levels // 5,
         "goud": statistieken["goud"] + extra_levels * 2,
-        "xp": statistieken["xp"] + extra_levels * 5,
+        "xp": (statistieken["xp"] + extra_levels * 5) * VIJAND_XP_MULTIPLIER,
     }
 
 
