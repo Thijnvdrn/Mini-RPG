@@ -16,25 +16,25 @@ Voer dit commando uit vanuit de map met de spelbestanden. Vul daarna een naam in
 
 Je begint met 20 goud en twee Health Potions. Kies uit drie klassen:
 
-| Klasse | Levenspunten | Aanval | Kritieke kans |
-| --- | ---: | ---: | ---: |
-| Krijger | 120 | 18 | 10% |
-| Magiër | 80 | 25 | 10% |
-| Sluipmoordenaar | 95 | 16 | 40% |
+| Klasse | Levenspunten | Aanval | Verdediging | Kritieke kans |
+| --- | ---: | ---: | ---: | ---: |
+| Krijger | 120 | 18 | 0 | 10% |
+| Magiër | 80 | 25 | 0 | 10% |
+| Sluipmoordenaar | 95 | 16 | 0 | 40% |
 
 Klik op **Verkennen** om het bos te onderzoeken. Je ontmoet met 75% kans een Goblin, Orc of Draak; anders herstel je 8 HP. Tijdens gevechten kies je tussen aanvallen, verdedigen, een potion of vluchten. Een kritieke treffer doet dubbele schade. Elke derde vijandelijke beurt volgt een zware aanval met 150% aanvalskracht. De interface waarschuwt hiervoor voordat je je actie kiest. **Verdedigen** kost je aanval die beurt, maar blokkeert 65% van de schade. Potions en mislukte vluchtpogingen geven de vijand ook een beurt.
 
-Vluchten lukt bij gewone vijanden met 60% kans. Bij 0 HP verlies je je goud en herstel je met volle HP; level, XP, upgrades en inventaris blijven behouden.
+Vluchten lukt bij gewone vijanden met 60% kans. Bij 0 HP verschijnt eerst een verliespagina; je moet op **Verder naar het woud** klikken voordat je verder kunt. Je verliest je goud en één level (minimaal level 1), herstelt met volle HP en krijgt 100 goud herstelgeld om bij de handelaar in te kopen. De upgrade die je bij dat level koos, wordt teruggedraaid; XP en inventaris blijven behouden.
 
-Versla vijanden voor goud en XP. Het volgende level vereist `100 × level + 4 × (level − 1)²` XP. Elk level geeft 12 Max HP en 2 aanval, zonder je huidige HP te herstellen. Vijanden krijgen per extra level 14 HP, plus `(level − 1)² // 4` HP. Hun aanval groeit met 1 per extra level en nog 1 per vijf extra levels. De route naar de eindbaas duurt daardoor langer en vijanden blijven ook later meerdere treffers vragen.
+Versla vijanden voor goud en XP. Het volgende level vereist `100 × level + 4 × (level − 1)²` XP. Bij elk level kies je één upgrade: +20 Max HP en HP, +3 aanval of +1 verdediging (vermindert iedere inkomende treffer). Vijanden krijgen per extra level 18 HP, plus `(level − 1)² // 4` HP. Hun aanval groeit met 1 per extra level en nog 1 per vijf extra levels. De route naar de eindbaas duurt daardoor langer en vijanden blijven ook later meerdere treffers vragen.
 
 De handelaar verkoopt Health Potions voor 20 goud. Een potion herstelt 50% van je Max HP, naar beneden afgerond en tot maximaal volle gezondheid. Wapen-upgrades geven 3 aanval. De eerste kost 80 goud; bij `n` gekochte upgrades kost de volgende `80 + 35n + 15n²` goud. Je kunt maximaal `1 + level // 2` upgrades kopen. Elke twee levels komt dus een extra upgrade vrij. Gewone vijanden geven per extra level 2 extra goud en 5 extra XP.
 
 ### De Nachtvorst
 
-Op level 30 verschijnt de Nachtvorst: direct wanneer je die grens bereikt na een overwinning, of bij de volgende verkenning. Hij heeft 1400 HP en 34 aanval. Hij geneest na elke vijandelijke beurt 12 HP, ook wanneer je verdedigt of een potion gebruikt. Je kunt dus rustig nadenken; snel klikken versnelt zijn genezing niet en omzeilt haar ook niet.
+Op level 30 verschijnt de Nachtvorst: direct wanneer je die grens bereikt na een overwinning, of bij de volgende verkenning. Hij heeft 1700 HP en 38 aanval. Hij geneest na elke vijandelijke beurt 16 HP, ook wanneer je verdedigt of een potion gebruikt. Je kunt dus rustig nadenken; snel klikken versnelt zijn genezing niet en omzeilt haar ook niet.
 
-Elke derde beurt gebruikt hij schaduwvuur met 150% aanvalskracht. Zodra hij bij zijn aanval op halve HP of lager staat, wordt hij blijvend woedend en doet hij dubbele schade. Let op de waarschuwing en plan je verdediging en potions. Vluchten lukt met 35% kans. Na vluchten of verliezen kun je hem via Verkennen opnieuw uitdagen, met volle HP.
+Elke derde beurt gebruikt hij schaduwvuur met 150% aanvalskracht. Zodra hij bij zijn aanval op halve HP of lager staat, wordt hij blijvend woedend en doet hij dubbele schade. Let op de waarschuwing en plan je verdediging en potions. Vluchten lukt met 35% kans. Na vluchten kun je hem via Verkennen opnieuw uitdagen; na een nederlaag moet je eerst terug level 30 bereiken.
 
 Een overwinning geeft eenmalig 500 goud en 1200 XP. Boven level 30 krijgt de Nachtvorst per extra level 30 HP en 2 aanval. Je voortgang wordt niet opgeslagen wanneer je het spel afsluit. De testnaam `Baas` begint op level 29 met 10.000 goud; ook dan geldt de upgradegrens.
 
