@@ -4,11 +4,14 @@ Welkom in **De Wildernis**, een kleine Nederlandstalige RPG die met Python en Tk
 
 ## Starten
 
-Je hebt Python 3.10 of hoger nodig. Tkinter wordt normaal gesproken met Python meegeleverd; er zijn geen extra packages nodig.
+Je hebt Python 3.10 of hoger nodig, met Tkinter en Pillow voor de PNG-afbeeldingen. Tkinter wordt normaal gesproken met Python meegeleverd.
 
 ```powershell
+python -m pip install "Pillow>=12.0"
 python main.py
 ```
+
+Gebruik je de projectomgeving met `uv`, dan kun je starten met `uv run main.py` (Python 3.14 of hoger).
 
 Voer dit commando uit vanuit de map met de spelbestanden. Vul daarna een naam in, kies een klasse en begin je avontuur.
 
@@ -46,11 +49,14 @@ Versla hem voor 2000 goud en één level: je hebt het spel uitgespeeld! Het over
 
 ## Hoe de code is opgebouwd
 
-- **`main.py`** bevat de spelregels en de Tkinter-interface. Hier worden de speler en vijanden aangemaakt, beurten afgehandeld, XP en levels bijgehouden, de winkel beheerd en het baasgevecht geregeld.
-- **`visuals.py`** tekent het bos, de helden, de vijanden en de HUD van beide bazen op een Tkinter Canvas. De Gouden Draak heeft gouden schubben en vleugels. De illustraties worden in code getekend; er zijn geen losse afbeeldingen nodig.
+- **`main.py`** start het spel en bevat de spelregels: spelers en vijanden aanmaken, aanvallen, verdedigen, genezen, vluchten en levels verwerken.
+- **`interface.py`** bevat de vensters, knoppen, winkel, statistieken, animaties en schermupdates. `MiniRPG` neemt deze weergavemethoden over van `SpelInterface`, zodat ze in `main.py` gewoon met `self` kunnen worden aangeroepen.
+- **`instellingen.py`** bevat de spelinstellingen, kleuren en klasse- en vijandstatistieken, plus de gedeelde berekeningen voor XP en wapenprijzen.
+- **`visuals.py`** toont het bos en de personages als PNG-afbeeldingen op een Tkinter Canvas. Pillow schaalt ze mee met het venster. De HUD van beide bazen gebruikt nog steeds tekst en rechthoeken.
+- **`assets/`** bevat twee achtergronden voor het menu en de spelscène, en acht transparante sprites. Deze zijn gemaakt van de oorspronkelijke tekeningen, zodat de bestaande stijl behouden blijft.
 - **`test_boss.py`** bevat regressietests voor onder andere level-ups, het starten en stoppen van het baasgevecht, genezing per beurt, vluchten, de baasbeloning, verkennen, verdedigen en upgradegrenzen.
 
-De belangrijkste spelinstellingen — zoals prijzen, genezing, levelbonussen en de level waarop de baas verschijnt — staan als constanten bovenaan `main.py`. Klasse-statistieken vind je in `KLASSEN`; de basiswaarden en beloningen van gewone vijanden staan in `VIJANDEN`. Voor nieuwe of aangepaste illustraties kun je terecht in `visuals.py`.
+Wil je de spelbalans aanpassen, open dan `instellingen.py`. Prijzen, genezing, levelbonussen en de levels waarop bazen verschijnen staan daar als constanten. Klasse-statistieken vind je in `KLASSEN`; de basiswaarden en beloningen van gewone vijanden staan in `VIJANDEN`. Pas voor andere spelregels de betreffende actie in `main.py` aan, en voor een andere indeling de schermmethode in `interface.py`. Voor aangepaste illustraties vervang je de PNG’s in `assets/`; de spritebestanden hebben een transparant canvas van 660 × 608 pixels, met het voetpunt op (300, 568).
 
 ## Tests uitvoeren
 
