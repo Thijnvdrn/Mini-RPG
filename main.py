@@ -27,8 +27,9 @@ LEVEL_VERDEDIGING_UPGRADE = 2
 LEVEL_BASIS_HP = 30
 LEVEL_BASIS_AANVAL = 10
 EINDBAAS_LEVEL = 100
-EINDBAAS_HP = 4500
-EINDBAAS_AANVAL = 100
+EINDBAAS_HP = 12_000
+EINDBAAS_AANVAL = 150
+EINDBAAS_GENEZING = 60
 
 ACHTERGROND = "#0d171e"
 PANEEL = "#17272e"
@@ -43,6 +44,12 @@ KLASSEN = {
     "Krijger": {"hp": 240, "aanval": 40, "kritieke_kans": 10},
     "Magiër": {"hp": 180, "aanval": 55, "kritieke_kans": 10},
     "Sluipmoordenaar": {"hp": 210, "aanval": 38, "kritieke_kans": 40},
+}
+
+VIJANDEN = {
+    "Goblin": {"hp": 40, "aanval": 8, "goud": 12},
+    "Orc": {"hp": 60, "aanval": 11, "goud": 20},
+    "Draak": {"hp": 90, "aanval": 15, "goud": 35},
 }
 
 
@@ -80,12 +87,8 @@ def maak_speler(naam, klasse):
 
 
 def maak_vijand(speler_level):
-    vijand_soort = random.choice(["Goblin", "Orc", "Draak"])
-    statistieken = {
-        "Goblin": {"hp": 40, "aanval": 8, "goud": 12, "xp": 20},
-        "Orc": {"hp": 60, "aanval": 11, "goud": 20, "xp": 30},
-        "Draak": {"hp": 90, "aanval": 15, "goud": 35, "xp": 45},
-    }[vijand_soort]
+    vijand_soort = random.choice(list(VIJANDEN))
+    statistieken = VIJANDEN[vijand_soort]
     extra_levels = speler_level - 1
     hp = statistieken["hp"] + extra_levels * VIJAND_HP_PER_LEVEL
     return {
@@ -113,7 +116,8 @@ def maak_gouden_draak():
     return {
         "naam": "Gouden Draak", "hp": EINDBAAS_HP, "max_hp": EINDBAAS_HP,
         "aanval": EINDBAAS_AANVAL, "goud": 2000, "xp": XP_PER_LEVEL,
-        "baas": True, "eindbaas": True, "woedend": False, "beurten": 0,
+        "baas": True, "eindbaas": True, "genezing": EINDBAAS_GENEZING,
+        "woedend": False, "beurten": 0,
     }
 
 
@@ -187,6 +191,12 @@ class MiniRPG:
             **opties,
         )
 
+    def centreer_venster(self, venster):
+        venster.update_idletasks()
+        x = self.root.winfo_rootx() + (self.root.winfo_width() - venster.winfo_width()) // 2
+        y = self.root.winfo_rooty() + (self.root.winfo_height() - venster.winfo_height()) // 2
+        venster.geometry(f"+{max(0, x)}+{max(0, y)}")
+
     def knop(self, ouder, tekst, actie, kleur=PANEEL_LICHT, breedte=None):
         knop = tk.Button(
             ouder,
@@ -246,12 +256,11 @@ class MiniRPG:
 
         self.label(kaart, "Kies je klasse", 13, vet=True).pack(anchor="w")
         self.klasse_keuze = tk.StringVar(value="Krijger")
-        omschrijvingen = {
-            "Krijger": "240 HP  ·  40 aanval  ·  stevig",
-            "Magiër": "180 HP  ·  55 aanval  ·  krachtige spreuken",
-            "Sluipmoordenaar": "210 HP  ·  38 aanval  ·  40% kritieke kans",
-        }
-        for klasse, omschrijving in omschrijvingen.items():
+        for klasse, statistieken in KLASSEN.items():
+            omschrijving = (
+                f"{statistieken['hp']} HP  ·  {statistieken['aanval']} aanval  ·  "
+                f"{statistieken['kritieke_kans']}% kritieke kans"
+            )
             rij = tk.Frame(kaart, bg=PANEEL)
             rij.pack(fill="x", pady=3)
             portret = tk.Canvas(rij, width=54, height=62, bg=PANEEL, highlightthickness=0)
@@ -288,21 +297,14 @@ class MiniRPG:
         self.level_keuzes = []
         self.level_upgrades = []
         if naam.casefold() == "baas":
-            self.speler["level"] = BAAS_LEVEL - 1
-            self.speler["goud"] = 100_000
-            for index in range(BAAS_LEVEL - 2):
+            self.speler["level"] = EINDBAAS_LEVEL - 1
+            self.speler["goud"] = 10_000_000
+            for index in range(self.speler["level"] - 1):
                 self.speler["max_hp"] += LEVEL_BASIS_HP
                 self.speler["hp"] += LEVEL_BASIS_HP
                 self.speler["aanval"] += LEVEL_BASIS_AANVAL
                 keuze = ("hp", "aanval", "verdediging")[index % 3]
-                self.level_upgrades.append(keuze)
-                if keuze == "hp":
-                    self.speler["max_hp"] += LEVEL_HP_UPGRADE
-                    self.speler["hp"] += LEVEL_HP_UPGRADE
-                elif keuze == "aanval":
-                    self.speler["aanval"] += LEVEL_AANVAL_UPGRADE
-                else:
-                    self.speler["verdediging"] += LEVEL_VERDEDIGING_UPGRADE
+                self.geef_level_upgrade(keuze)
         self.gevecht = False
         self.vijand = None
         self.toon_spelscherm()
@@ -499,7 +501,8 @@ class MiniRPG:
         if eindbaas:
             self.log("Versla de Gouden Draak en speel het spel uit!")
         self.log("Elke derde beurt: drakenvuur! Bij halve HP wordt hij woedend: 2× schade.")
-        self.log(f"De draak geneest {BAAS_GENEZING} HP per beurt. Verdedig tegen drakenvuur.")
+        genezing = self.vijand.get("genezing", BAAS_GENEZING)
+        self.log(f"De draak geneest {genezing} HP per beurt. Verdedig tegen drakenvuur.")
         self.update_status()
         self.update_acties()
         self.teken_scène()
@@ -553,6 +556,8 @@ class MiniRPG:
         self.vijand_valt_aan()
 
     def verwerk_beurt(self):
+        if not self.gevecht or not self.vijand:
+            return
         if self.vijand["hp"] == 0:
             eindbaas = self.vijand.get("eindbaas", False)
             if self.vijand.get("baas") and not eindbaas:
@@ -584,14 +589,16 @@ class MiniRPG:
         self.vijand_valt_aan(verdedigd=True)
 
     def vijand_valt_aan(self, verdedigd=False):
+        if not self.gevecht or not self.vijand:
+            return
         aanval = self.vijand["aanval"]
         self.vijand["beurten"] += 1
         if self.vijand.get("baas") and self.vijand["hp"] <= self.vijand["max_hp"] / 2:
             if not self.vijand["woedend"]:
                 self.log(f"De {self.vijand['naam']} wordt woedend! Zijn aanvallen doen 2× schade.")
             self.vijand["woedend"] = True
-        schaduwvuur = self.vijand["beurten"] % 3 == 0
-        if schaduwvuur:
+        zware_aanval = self.vijand["beurten"] % 3 == 0
+        if zware_aanval:
             aanval = aanval * 3 // 2
         schade = random.randint(aanval - 2, aanval + 2)
         if self.vijand.get("woedend"):
@@ -600,9 +607,12 @@ class MiniRPG:
         if verdedigd:
             schade = max(1, schade * (100 - VERDEDIGING_PERCENT) // 100)
         self.speler["hp"] = max(0, self.speler["hp"] - schade)
-        self.log(f"De {self.vijand['naam']} doet {schade} schade"
-                 + ((" met drakenvuur!" if self.vijand.get("baas") else " met een zware aanval!")
-                    if schaduwvuur else "."))
+        melding = f"De {self.vijand['naam']} doet {schade} schade"
+        if zware_aanval:
+            melding += " met drakenvuur!" if self.vijand.get("baas") else " met een zware aanval!"
+        else:
+            melding += "."
+        self.log(melding)
         if self.speler["hp"] == 0:
             self.gevecht = False
             self.vijand = None
@@ -613,7 +623,8 @@ class MiniRPG:
             self.toon_verliespagina(verloren_goud, verloren_level)
             return
         if self.gevecht and self.vijand.get("baas"):
-            self.vijand["hp"] = min(self.vijand["max_hp"], self.vijand["hp"] + BAAS_GENEZING)
+            genezing = self.vijand.get("genezing", BAAS_GENEZING)
+            self.vijand["hp"] = min(self.vijand["max_hp"], self.vijand["hp"] + genezing)
         self.update_status()
         self.update_acties()
         self.teken_scène()
@@ -627,9 +638,11 @@ class MiniRPG:
             self.speler["aanval"] += LEVEL_BASIS_AANVAL
             self.speler["hp"] = self.speler["max_hp"]
             if not kies_upgrade:
-                return
+                continue
             self.level_keuzes.append(self.speler["level"])
             self.log(f"Level omhoog! Je bent nu level {self.speler['level']}. Volle HP, +{LEVEL_BASIS_HP} Max HP en +{LEVEL_BASIS_AANVAL} aanval. Kies een extra upgrade.")
+        if not kies_upgrade:
+            return
         if self.level_keuzes:
             self.toon_level_keuze()
         else:
@@ -664,15 +677,9 @@ class MiniRPG:
                 PANEEL_LICHT,
             ).pack(fill="x", pady=4)
         venster.protocol("WM_DELETE_WINDOW", lambda: None)
-        venster.update_idletasks()
-        x = self.root.winfo_rootx() + (self.root.winfo_width()-venster.winfo_width())//2
-        y = self.root.winfo_rooty() + (self.root.winfo_height()-venster.winfo_height())//2
-        venster.geometry(f"+{max(0, x)}+{max(0, y)}")
+        self.centreer_venster(venster)
 
-    def kies_level_upgrade(self, keuze):
-        if not self.level_keuzes:
-            return
-        self.level_keuzes.pop(0)
+    def geef_level_upgrade(self, keuze):
         if keuze == "hp":
             self.speler["max_hp"] += LEVEL_HP_UPGRADE
             self.speler["hp"] = min(
@@ -680,9 +687,17 @@ class MiniRPG:
             )
         elif keuze == "aanval":
             self.speler["aanval"] += LEVEL_AANVAL_UPGRADE
-        else:
+        elif keuze == "verdediging":
             self.speler["verdediging"] += LEVEL_VERDEDIGING_UPGRADE
+        else:
+            raise ValueError(f"Onbekende upgrade: {keuze}")
         self.level_upgrades.append(keuze)
+
+    def kies_level_upgrade(self, keuze):
+        if not self.level_keuzes:
+            return
+        self.geef_level_upgrade(keuze)
+        self.level_keuzes.pop(0)
         venster = self.level_keuze_venster
         self.level_keuze_venster = None
         if venster and venster.winfo_exists():
@@ -720,7 +735,7 @@ class MiniRPG:
         kaart.place(relx=0.5, rely=0.5, anchor="center")
         self.label(kaart, "JE HEBT HET SPEL UITGESPEELD!", 23, GOUD, True).pack(pady=(0, 12))
         self.label(kaart, "De Gouden Draak is verslagen. De Wildernis is gered!", 12).pack()
-        self.label(kaart, f"{self.speler['naam']} ? Level {self.speler['level']} ? "
+        self.label(kaart, f"{self.speler['naam']} · Level {self.speler['level']} · "
                    f"{self.speler['goud']} goud", 12, GROEN).pack(pady=(12, 22))
         self.knop(kaart, "Nieuw avontuur", self.toon_startscherm, GROEN).pack(fill="x")
         self.knop(kaart, "Afsluiten", self.root.destroy).pack(fill="x", pady=(8, 0))
@@ -780,13 +795,17 @@ class MiniRPG:
                 state="normal" if self.speler["wapen_upgrades"] < wapen_limiet(self.speler) else "disabled",
             )
 
-        def koop_potion():
-            if self.speler["goud"] < POTION_PRIJS:
+        def koop_potions(aantal):
+            prijs = aantal * POTION_PRIJS
+            if self.speler["goud"] < prijs:
                 messagebox.showinfo("Winkel", "Je hebt niet genoeg goud.", parent=winkel)
                 return
-            self.speler["goud"] -= POTION_PRIJS
-            self.speler["inventaris"].append("Health Potion")
-            self.log("Je koopt een Health Potion.")
+            self.speler["goud"] -= prijs
+            self.speler["inventaris"].extend(["Health Potion"] * aantal)
+            if aantal == 1:
+                self.log("Je koopt een Health Potion.")
+            else:
+                self.log(f"Je koopt {aantal} Health Potions.")
             update_goud()
             self.update_status()
             self.update_acties()
@@ -810,7 +829,17 @@ class MiniRPG:
         self.knop(
             inhoud,
             f"Health Potion  (+{POTION_GENEZING_PERCENT}% van Max HP)  ·  {POTION_PRIJS} goud",
-            koop_potion,
+            lambda: koop_potions(1),
+        ).pack(fill="x", pady=4)
+        self.knop(
+            inhoud,
+            f"10x Health Potion  ·  {10 * POTION_PRIJS} goud",
+            lambda: koop_potions(10),
+        ).pack(fill="x", pady=4)
+        self.knop(
+            inhoud,
+            f"100x Health Potion  ·  {100 * POTION_PRIJS} goud",
+            lambda: koop_potions(100),
         ).pack(fill="x", pady=4)
         upgrade_knop = self.knop(
             inhoud,
@@ -822,10 +851,7 @@ class MiniRPG:
         self.knop(inhoud, "Terug naar avontuur", winkel.destroy, PANEEL_LICHT).pack(
             fill="x", pady=(14, 0)
         )
-        winkel.update_idletasks()
-        x = self.root.winfo_rootx() + (self.root.winfo_width()-winkel.winfo_width())//2
-        y = self.root.winfo_rooty() + (self.root.winfo_height()-winkel.winfo_height())//2
-        winkel.geometry(f"+{max(0, x)}+{max(0, y)}")
+        self.centreer_venster(winkel)
 
     def stop_spel(self):
         if messagebox.askyesno("Avontuur stoppen", "Weet je zeker dat je wilt stoppen?"):
@@ -883,7 +909,10 @@ class MiniRPG:
             if baasgevecht:
                 self.vijand_frame.pack_forget()
                 volgende = (self.vijand["beurten"] + 1) % 3 == 0
-                baas_balk(canvas, breedte, self.vijand, volgende, BAAS_GENEZING)
+                baas_balk(
+                    canvas, breedte, self.vijand, volgende,
+                    self.vijand.get("genezing", BAAS_GENEZING),
+                )
             else:
                 self.vijand_frame.pack(fill="x", before=self.gebeurtenissen.master)
             self.vijand_balk.configure(maximum=self.vijand["max_hp"], value=self.vijand["hp"])
