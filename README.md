@@ -29,7 +29,7 @@ Klik op **Verkennen** om het bos te onderzoeken. Je ontmoet met 75% kans een Gob
 
 Vluchten lukt bij gewone vijanden met 60% kans. Bij 0 HP verschijnt eerst een verliespagina; je moet op **Verder naar het woud** klikken voordat je verder kunt. Je verliest je goud en één level (minimaal level 1), herstelt met volle HP en krijgt 100 goud herstelgeld om bij de handelaar in te kopen. De automatische levelbonussen en de upgrade die je bij dat level koos, worden teruggedraaid; inventaris blijft behouden.
 
-Elke kill geeft precies één level, ook bij een baas. Per level krijg je automatisch +30 Max HP, +10 aanval en volle HP. Daarnaast kies je één extra upgrade: +40 Max HP en HP, +10 aanval of +2 verdediging (vermindert iedere inkomende treffer). Gewone vijanden krijgen per extra level 8 HP. Hun aanval groeit met 1 per extra level en nog 1 per vijf extra levels. Zonder nederlagen bereik je level 100 na 99 kills.
+Elke kill geeft precies één level, ook bij een baas. Per level krijg je automatisch +30 Max HP; je huidige HP en aanval blijven gelijk. Daarnaast kies je één extra upgrade: +40 Max HP en HP, +10 aanval of +2 verdediging (vermindert iedere inkomende treffer). Gewone vijanden krijgen per extra level 8 HP. Hun aanval groeit met 1 per extra level en nog 1 per vijf extra levels. Zonder nederlagen bereik je level 100 na 99 kills.
 
 De handelaar verkoopt Health Potions voor 20 goud. Een potion herstelt 50% van je Max HP, naar beneden afgerond en tot maximaal volle gezondheid. Wapen-upgrades geven 8 aanval. De eerste kost 80 goud; bij `n` gekochte upgrades kost de volgende `80 + 35n + 15n²` goud. Je kunt maximaal `1 + level // 2` upgrades kopen. Elke twee levels komt dus een extra upgrade vrij. Gewone vijanden geven per extra level 2 extra goud.
 

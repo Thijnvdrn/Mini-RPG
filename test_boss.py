@@ -8,7 +8,7 @@ from main import (MiniRPG, maak_vijand, maak_speler, xp_voor_level, wapen_prijs,
                   BAAS_LEVEL, BAAS_HP, BAAS_GENEZING, LEVEL_HP_UPGRADE,
                   LEVEL_AANVAL_UPGRADE, LEVEL_VERDEDIGING_UPGRADE,
                   WAPEN_VERBETERING, KLASSEN, NEDERLAAG_GOUD, LEVEL_BASIS_HP,
-                  LEVEL_BASIS_AANVAL, EINDBAAS_LEVEL, EINDBAAS_HP,
+                  EINDBAAS_LEVEL, EINDBAAS_HP,
                   EINDBAAS_AANVAL, EINDBAAS_GENEZING, POTION_PRIJS)
 
 
@@ -47,7 +47,7 @@ class BaasgevechtTests(unittest.TestCase):
         self.assertEqual(self.app.speler["goud"], 10_000_000)
         self.assertEqual(self.app.speler["hp"], self.app.speler["max_hp"])
         self.assertEqual(self.app.speler["max_hp"], KLASSEN["Krijger"]["hp"] + 98 * LEVEL_BASIS_HP + 33 * LEVEL_HP_UPGRADE)
-        self.assertEqual(self.app.speler["aanval"], KLASSEN["Krijger"]["aanval"] + 98 * LEVEL_BASIS_AANVAL + 33 * LEVEL_AANVAL_UPGRADE)
+        self.assertEqual(self.app.speler["aanval"], KLASSEN["Krijger"]["aanval"] + 33 * LEVEL_AANVAL_UPGRADE)
         self.assertEqual(self.app.speler["verdediging"], 32 * LEVEL_VERDEDIGING_UPGRADE)
 
     def test_overwinning_bij_levelgrens_start_baas_direct(self):
@@ -57,9 +57,9 @@ class BaasgevechtTests(unittest.TestCase):
         self.app.verwerk_beurt()
         self.kies_level("Aanval")
         self.assertEqual(self.app.speler["level"], BAAS_LEVEL)
-        self.assertEqual(self.app.speler["hp"], 390 + LEVEL_BASIS_HP)
+        self.assertEqual(self.app.speler["hp"], 390)
         self.assertEqual(self.app.speler["max_hp"], 390 + LEVEL_BASIS_HP)
-        self.assertEqual(self.app.speler["aanval"], 72 + LEVEL_BASIS_AANVAL + LEVEL_AANVAL_UPGRADE)
+        self.assertEqual(self.app.speler["aanval"], 72 + LEVEL_AANVAL_UPGRADE)
         self.assertTrue(self.app.gevecht)
         self.assertTrue(self.app.vijand["baas"])
         self.assertEqual(self.app.vijand["hp"], BAAS_HP)
@@ -80,15 +80,15 @@ class BaasgevechtTests(unittest.TestCase):
         self.assertFalse(self.app.gevecht)
 
     def test_meerdere_xp_zonder_upgradekeuze_worden_volledig_verwerkt(self):
-        self.app.speler["xp"] = 3
+        self.app.speler.update(xp=3, hp=100)
         with patch.object(self.app, "toon_level_keuze") as keuze, \
                 patch.object(self.app, "start_baasgevecht") as baas:
             self.app.controleer_level(kies_upgrade=False)
         self.assertEqual(self.app.speler["level"], BAAS_LEVEL + 2)
         self.assertEqual(self.app.speler["xp"], 0)
         self.assertEqual(self.app.speler["max_hp"], 390 + 3 * LEVEL_BASIS_HP)
-        self.assertEqual(self.app.speler["aanval"], 72 + 3 * LEVEL_BASIS_AANVAL)
-        self.assertEqual(self.app.speler["hp"], self.app.speler["max_hp"])
+        self.assertEqual(self.app.speler["aanval"], 72)
+        self.assertEqual(self.app.speler["hp"], 100)
         self.assertEqual(self.app.level_keuzes, [])
         keuze.assert_not_called()
         baas.assert_not_called()
@@ -145,7 +145,6 @@ class BaasgevechtTests(unittest.TestCase):
                                  {**voortgang, "level": voortgang["level"] - 1,
                                   "hp": voortgang["max_hp"] - LEVEL_BASIS_HP,
                                   "max_hp": voortgang["max_hp"] - LEVEL_BASIS_HP,
-                                  "aanval": voortgang["aanval"] - LEVEL_BASIS_AANVAL,
                                   "goud": NEDERLAAG_GOUD})
                 self.assertFalse(self.app.gevecht)
                 self.assertIsNone(self.app.vijand)
@@ -160,7 +159,7 @@ class BaasgevechtTests(unittest.TestCase):
 
     def test_nederlaag_draait_upgrade_van_verloren_level_terug(self):
         self.app.speler.update(level=2, hp=1, max_hp=120 + LEVEL_BASIS_HP + LEVEL_HP_UPGRADE,
-                               aanval=18 + LEVEL_BASIS_AANVAL, goud=80)
+                               aanval=18, goud=80)
         self.app.level_upgrades = ["hp"]
         self.app.vijand = maak_vijand(2)
         self.app.gevecht = True
@@ -169,6 +168,7 @@ class BaasgevechtTests(unittest.TestCase):
         self.assertEqual(self.app.speler["level"], 1)
         self.assertEqual(self.app.speler["max_hp"], 120)
         self.assertEqual(self.app.speler["hp"], 120)
+        self.assertEqual(self.app.speler["aanval"], 18)
         self.assertEqual(self.app.level_upgrades, [])
         self.assertEqual(self.app.speler["goud"], NEDERLAAG_GOUD)
 
@@ -228,18 +228,20 @@ class BaasgevechtTests(unittest.TestCase):
 
 
 
-    def test_een_kill_geeft_een_level_en_basisbonussen(self):
+    def test_level_up_geneest_niet_en_geeft_geen_automatische_aanval(self):
         self.app.speler.update(level=1, xp=0, hp=100, max_hp=120, aanval=18)
         self.app.controleer_level()
         self.assertEqual(self.app.speler["level"], 1)
         self.app.speler["xp"] = 1
         self.app.controleer_level()
         self.assertEqual(self.app.speler["level"], 2)
+        self.assertEqual(self.app.speler["hp"], 100)
+        self.assertEqual(self.app.speler["aanval"], 18)
         self.kies_level("Verdediging")
         self.assertEqual(self.app.speler["max_hp"], 120 + LEVEL_BASIS_HP)
-        self.assertEqual(self.app.speler["aanval"], 18 + LEVEL_BASIS_AANVAL)
+        self.assertEqual(self.app.speler["aanval"], 18)
         self.assertEqual(self.app.speler["verdediging"], LEVEL_VERDEDIGING_UPGRADE)
-        self.assertEqual(self.app.speler["hp"], self.app.speler["max_hp"])
+        self.assertEqual(self.app.speler["hp"], 100)
 
     def test_meerdere_kills_geven_afzonderlijke_upgradekeuzes(self):
         self.app.speler.update(level=1, xp=0, hp=30, max_hp=120, aanval=18)
@@ -252,9 +254,9 @@ class BaasgevechtTests(unittest.TestCase):
             self.app.kies_level_upgrade(keuze)
         self.assertEqual(self.app.speler["level"], 3)
         self.assertEqual(self.app.speler["xp"], 0)
-        self.assertEqual(self.app.speler["hp"], self.app.speler["max_hp"])
+        self.assertEqual(self.app.speler["hp"], 30 + LEVEL_HP_UPGRADE)
         self.assertEqual(self.app.speler["max_hp"], 120 + 2 * LEVEL_BASIS_HP + LEVEL_HP_UPGRADE)
-        self.assertEqual(self.app.speler["aanval"], 18 + 2 * LEVEL_BASIS_AANVAL + LEVEL_AANVAL_UPGRADE)
+        self.assertEqual(self.app.speler["aanval"], 18 + LEVEL_AANVAL_UPGRADE)
         self.assertEqual(self.app.level_upgrades, ["hp", "aanval"])
 
     def test_level_100_start_gouden_draak_na_upgradekeuze(self):
@@ -463,7 +465,7 @@ class BaasgevechtTests(unittest.TestCase):
 
 
 class ProgressieTests(unittest.TestCase):
-    def test_hele_avontuur_is_haalbaar_voor_elke_klasse(self):
+    def test_hele_avontuur_met_aanvalupgrades_en_potions_is_haalbaar(self):
         for klasse in KLASSEN:
             with self.subTest(klasse=klasse):
                 app = MiniRPG.__new__(MiniRPG)
@@ -493,7 +495,14 @@ class ProgressieTests(unittest.TestCase):
                             app.vijand = maak_vijand(app.speler["level"])
                             app.gevecht = True
                         for _ in range(100):
-                            app.val_aan()
+                            if app.speler["hp"] < app.speler["max_hp"] // 2:
+                                if "Health Potion" not in app.speler["inventaris"]:
+                                    self.assertGreaterEqual(app.speler["goud"], POTION_PRIJS)
+                                    app.speler["goud"] -= POTION_PRIJS
+                                    app.speler["inventaris"].append("Health Potion")
+                                app.gebruik_potion()
+                            else:
+                                app.val_aan()
                             if not app.gevecht:
                                 break
                         self.assertFalse(app.gevecht)
@@ -501,17 +510,17 @@ class ProgressieTests(unittest.TestCase):
                         app.toon_verliespagina.assert_not_called()
                         kills += 1
                         if app.level_keuzes:
-                            app.kies_level_upgrade("verdediging")
+                            app.kies_level_upgrade("aanval")
                 self.assertEqual(kills, 100)
                 self.assertEqual(app.speler["level"], 101)
                 self.assertTrue(app.speler["baas_verslagen"])
                 self.assertTrue(app.speler["uitgespeeld"])
                 app.toon_overwinningspagina.assert_called_once()
 
-    def test_gevechten_zijn_makkelijker_zonder_extra_upgrades(self):
+    def test_gekozen_aanvalupgrades_houden_gewone_gevechten_kort(self):
         for klasse, stats in KLASSEN.items():
             for level in (10, 30, 60, 99):
-                aanval = stats["aanval"] + (level - 1) * LEVEL_BASIS_AANVAL
+                aanval = stats["aanval"] + (level - 1) * LEVEL_AANVAL_UPGRADE
                 for soort in ("Goblin", "Orc", "Draak"):
                     with self.subTest(klasse=klasse, level=level, soort=soort):
                         with patch("main.random.choice", return_value=soort):
