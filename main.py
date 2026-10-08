@@ -11,6 +11,7 @@ from instellingen import (
     VIJAND_HP_PER_LEVEL, VIJAND_AANVAL_PER_LEVEL, GEVECHT_KANS, RUST_GENEZING, BAAS_LEVEL,
     BAAS_HP, BAAS_GENEZING, VERDEDIGING_PERCENT, BAAS_WOEDE_MULTIPLIER, NEDERLAAG_GOUD,
     LEVEL_HP_UPGRADE, LEVEL_AANVAL_UPGRADE, LEVEL_VERDEDIGING_UPGRADE, LEVEL_BASIS_HP,
+    LEVEL_UPGRADE_INTERVAL,
     EINDBAAS_LEVEL, EINDBAAS_HP, EINDBAAS_AANVAL, EINDBAAS_GENEZING,
     ACHTERGROND, PANEEL, PANEEL_LICHT, TEKST, GEDIMD, GROEN, GOUD, ROOD, KLASSEN, VIJANDEN,
     xp_voor_level, wapen_prijs, wapen_limiet,
@@ -106,13 +107,15 @@ class MiniRPG(SpelInterface):
             for index in range(self.speler["level"] - 1):
                 self.speler["max_hp"] += LEVEL_BASIS_HP
                 self.speler["hp"] += LEVEL_BASIS_HP
-                keuze = ("hp", "aanval", "verdediging")[index % 3]
-                self.geef_level_upgrade(keuze)
+                level = index + 2
+                if level % LEVEL_UPGRADE_INTERVAL == 0:
+                    keuze = ("hp", "aanval", "verdediging")[len(self.level_upgrades) % 3]
+                    self.geef_level_upgrade(keuze)
         self.gevecht = False
         self.vijand = None
         self.toon_spelscherm()
         self.log(f"Welkom, {naam} de {self.speler['klasse']}! Je avontuur begint.")
-        self.log("Elke kill geeft één level, extra Max HP en een upgradekeuze. Versla de Gouden Draak op level 100 om te winnen.")
+        self.log(f"Elke kill geeft één level en extra Max HP. Elke {LEVEL_UPGRADE_INTERVAL} levels kies je een upgrade. Versla de Gouden Draak op level 100 om te winnen.")
         self.log("Elke derde vijandelijke beurt komt een zware aanval. Verdedig om 65% schade te blokkeren.")
 
     def herstel_hp(self, genezing):
@@ -277,8 +280,11 @@ class MiniRPG(SpelInterface):
             self.speler["max_hp"] += LEVEL_BASIS_HP
             if not kies_upgrade:
                 continue
-            self.level_keuzes.append(self.speler["level"])
-            self.log(f"Level omhoog! Je bent nu level {self.speler['level']}. +{LEVEL_BASIS_HP} Max HP. Kies een extra upgrade.")
+            bericht = f"Level omhoog! Je bent nu level {self.speler['level']}. +{LEVEL_BASIS_HP} Max HP."
+            if self.speler["level"] % LEVEL_UPGRADE_INTERVAL == 0:
+                self.level_keuzes.append(self.speler["level"])
+                bericht += " Kies een upgrade."
+            self.log(bericht)
         if not kies_upgrade:
             return
         if self.level_keuzes:
@@ -319,9 +325,12 @@ class MiniRPG(SpelInterface):
     def verlies_level(self):
         if self.speler["level"] <= 1:
             return False
+        verloren_level = self.speler["level"]
         self.speler["level"] -= 1
         self.speler["max_hp"] -= LEVEL_BASIS_HP
-        if self.level_upgrades:
+        if verloren_level in self.level_keuzes:
+            self.level_keuzes.remove(verloren_level)
+        elif verloren_level % LEVEL_UPGRADE_INTERVAL == 0 and self.level_upgrades:
             keuze = self.level_upgrades.pop()
             if keuze == "hp":
                 self.speler["max_hp"] -= LEVEL_HP_UPGRADE

@@ -10,7 +10,8 @@ from tkinter import messagebox, ttk
 from instellingen import (
     POTION_GENEZING_PERCENT, POTION_PRIJS, WAPEN_PRIJS, WAPEN_VERBETERING, BAAS_LEVEL,
     BAAS_GENEZING, NEDERLAAG_GOUD, LEVEL_HP_UPGRADE, LEVEL_AANVAL_UPGRADE,
-    LEVEL_VERDEDIGING_UPGRADE, EINDBAAS_LEVEL, ACHTERGROND, PANEEL, PANEEL_LICHT, TEKST,
+    LEVEL_VERDEDIGING_UPGRADE, LEVEL_UPGRADE_INTERVAL, EINDBAAS_LEVEL,
+    ACHTERGROND, PANEEL, PANEEL_LICHT, TEKST,
     GEDIMD, GROEN, GOUD, ROOD, KLASSEN, xp_voor_level, wapen_prijs, wapen_limiet,
 )
 from visuals import landschap, personage, baas_balk
@@ -339,7 +340,7 @@ class SpelInterface:
         self.level_keuze_venster = venster
         self.label(inhoud, f"LEVEL {level}", 10, GOUD, True).pack(anchor="w")
         self.label(inhoud, "Kies je upgrade", 21, vet=True).pack(anchor="w", pady=(4, 8))
-        self.label(inhoud, "Deze bonus geldt meteen en blijft bij je volgende levels.",
+        self.label(inhoud, f"Elke {LEVEL_UPGRADE_INTERVAL} levels kies je een blijvende bonus.",
                    10, GEDIMD).pack(anchor="w", pady=(0, 14))
         keuzes = [
             ("Levenskracht", f"+{LEVEL_HP_UPGRADE} Max HP en HP", "hp"),
@@ -374,7 +375,7 @@ class SpelInterface:
         kaart.place(relx=0.5, rely=0.5, anchor="center")
         self.label(kaart, "JE HEBT VERLOREN", 25, ROOD, True).pack(pady=(0, 12))
         if verloren_level:
-            self.label(kaart, "Je verliest een level en de bijbehorende upgrade.", 12).pack()
+            self.label(kaart, "Je verliest een level en eventueel de upgrade van dat level.", 12).pack()
         else:
             self.label(kaart, "Je bent op level 1 gebleven.", 12).pack()
         self.label(
