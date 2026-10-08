@@ -1,9 +1,7 @@
 """PNG-achtergronden en sprites voor het Tkinter Canvas."""
 
-from functools import lru_cache
 from pathlib import Path
-
-from PIL import Image, ImageTk
+import tkinter as tk
 
 
 ASSETS = Path(__file__).resolve().parent / "assets"
@@ -23,11 +21,39 @@ SPRITE_HOOGTE = 152
 SPRITE_VOET = (75, 142)
 
 
-@lru_cache(maxsize=16)
-def _bronafbeelding(bestandsnaam):
-    """Laad elke PNG eenmaal, onafhankelijk van de huidige werkmap."""
-    with Image.open(ASSETS / bestandsnaam) as afbeelding:
-        return afbeelding.convert("RGBA")
+def _bronafbeelding(canvas, bestandsnaam):
+    """Laad PNG's met Tkinter en bewaar ze bij hun eigen Tcl-interpreter."""
+    cache = getattr(canvas, "_png_bronnen", None)
+    if cache is None:
+        cache = canvas._png_bronnen = {}
+    if bestandsnaam not in cache:
+        cache[bestandsnaam] = tk.PhotoImage(master=canvas, file=str(ASSETS / bestandsnaam))
+    return cache[bestandsnaam]
+
+
+def _schaal_afbeelding(canvas, bron, breedte, hoogte):
+    """Schaal naar exacte afmetingen met pixelstroken; behoud transparantie."""
+    bron_breedte, bron_hoogte = bron.width(), bron.height()
+    if (breedte, hoogte) == (bron_breedte, bron_hoogte):
+        return bron
+    if bron_breedte % breedte == 0 and bron_hoogte % hoogte == 0:
+        return bron.subsample(bron_breedte // breedte, bron_hoogte // hoogte)
+
+    # Kopieer eerst kolommen, daarna rijen. Tk voert de pixelkopieën uit,
+    # zodat Python geen PNG-decoder of extra bibliotheek nodig heeft.
+    tussen = tk.PhotoImage(master=canvas, width=breedte, height=bron_hoogte)
+    for x in range(breedte):
+        bron_x = min(bron_breedte - 1, (2 * x + 1) * bron_breedte // (2 * breedte))
+        tussen.tk.call(str(tussen), "copy", str(bron),
+                       "-from", bron_x, 0, bron_x + 1, bron_hoogte,
+                       "-to", x, 0, "-compositingrule", "set")
+    afbeelding = tk.PhotoImage(master=canvas, width=breedte, height=hoogte)
+    for y in range(hoogte):
+        bron_y = min(bron_hoogte - 1, (2 * y + 1) * bron_hoogte // (2 * hoogte))
+        afbeelding.tk.call(str(afbeelding), "copy", str(tussen),
+                           "-from", 0, bron_y, breedte, bron_y + 1,
+                           "-to", 0, y, "-compositingrule", "set")
+    return afbeelding
 
 
 def _canvas_afbeelding(canvas, bestandsnaam, breedte, hoogte):
@@ -38,9 +64,8 @@ def _canvas_afbeelding(canvas, bestandsnaam, breedte, hoogte):
     grootte = (max(1, round(breedte)), max(1, round(hoogte)))
     vorige = cache.get(bestandsnaam)
     if vorige is None or vorige[0] != grootte:
-        bron = _bronafbeelding(bestandsnaam)
-        geschaald = bron.resize(grootte, Image.Resampling.LANCZOS)
-        afbeelding = ImageTk.PhotoImage(geschaald, master=canvas)
+        bron = _bronafbeelding(canvas, bestandsnaam)
+        afbeelding = _schaal_afbeelding(canvas, bron, *grootte)
         cache[bestandsnaam] = (grootte, afbeelding)
     return cache[bestandsnaam][1]
 
@@ -52,7 +77,7 @@ def landschap(canvas, breedte, hoogte, tijd=0):
     bestandsnaam = min(
         ACHTERGRONDEN,
         key=lambda naam: abs(
-            _bronafbeelding(naam).width / _bronafbeelding(naam).height - verhouding
+            _bronafbeelding(canvas, naam).width() / _bronafbeelding(canvas, naam).height() - verhouding
         ),
     )
     afbeelding = _canvas_afbeelding(canvas, bestandsnaam, breedte, hoogte)
