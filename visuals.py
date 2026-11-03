@@ -1,7 +1,8 @@
 """PNG-achtergronden en sprites voor het Tkinter Canvas."""
 
 from pathlib import Path
-import tkinter as tk
+
+from PIL import Image, ImageTk
 
 
 ASSETS = Path(__file__).resolve().parent / "assets"
@@ -22,38 +23,20 @@ SPRITE_VOET = (75, 142)
 
 
 def _bronafbeelding(canvas, bestandsnaam):
-    """Laad PNG's met Tkinter en bewaar ze bij hun eigen Tcl-interpreter."""
+    """Laad PNG's eenmaal per Canvas voor snelle, vloeiende schaling."""
     cache = getattr(canvas, "_png_bronnen", None)
     if cache is None:
         cache = canvas._png_bronnen = {}
     if bestandsnaam not in cache:
-        cache[bestandsnaam] = tk.PhotoImage(master=canvas, file=str(ASSETS / bestandsnaam))
+        with Image.open(ASSETS / bestandsnaam) as bron:
+            cache[bestandsnaam] = bron.convert("RGBA")
     return cache[bestandsnaam]
 
 
 def _schaal_afbeelding(canvas, bron, breedte, hoogte):
-    """Schaal naar exacte afmetingen met pixelstroken; behoud transparantie."""
-    bron_breedte, bron_hoogte = bron.width(), bron.height()
-    if (breedte, hoogte) == (bron_breedte, bron_hoogte):
-        return bron
-    if bron_breedte % breedte == 0 and bron_hoogte % hoogte == 0:
-        return bron.subsample(bron_breedte // breedte, bron_hoogte // hoogte)
-
-    # Kopieer eerst kolommen, daarna rijen. Tk voert de pixelkopieën uit,
-    # zodat Python geen PNG-decoder of extra bibliotheek nodig heeft.
-    tussen = tk.PhotoImage(master=canvas, width=breedte, height=bron_hoogte)
-    for x in range(breedte):
-        bron_x = min(bron_breedte - 1, (2 * x + 1) * bron_breedte // (2 * breedte))
-        tussen.tk.call(str(tussen), "copy", str(bron),
-                       "-from", bron_x, 0, bron_x + 1, bron_hoogte,
-                       "-to", x, 0, "-compositingrule", "set")
-    afbeelding = tk.PhotoImage(master=canvas, width=breedte, height=hoogte)
-    for y in range(hoogte):
-        bron_y = min(bron_hoogte - 1, (2 * y + 1) * bron_hoogte // (2 * hoogte))
-        afbeelding.tk.call(str(afbeelding), "copy", str(tussen),
-                           "-from", 0, bron_y, breedte, bron_y + 1,
-                           "-to", 0, y, "-compositingrule", "set")
-    return afbeelding
+    """Schaal afbeeldingen buiten Tk's trage pixel-voor-pixel kopieerlus."""
+    geschaald = bron.resize((breedte, hoogte), Image.Resampling.LANCZOS)
+    return ImageTk.PhotoImage(master=canvas, image=geschaald)
 
 
 def _canvas_afbeelding(canvas, bestandsnaam, breedte, hoogte):
@@ -77,7 +60,7 @@ def landschap(canvas, breedte, hoogte, tijd=0):
     bestandsnaam = min(
         ACHTERGRONDEN,
         key=lambda naam: abs(
-            _bronafbeelding(canvas, naam).width() / _bronafbeelding(canvas, naam).height() - verhouding
+            _bronafbeelding(canvas, naam).width / _bronafbeelding(canvas, naam).height - verhouding
         ),
     )
     afbeelding = _canvas_afbeelding(canvas, bestandsnaam, breedte, hoogte)
@@ -113,7 +96,7 @@ def baas_balk(canvas, breedte, vijand, schaduwvuur=False, genezing=12):
                        fill="#83c98a", font=("Segoe UI", 9), tags=tag)
 
 
-def personage(canvas, x, y, soort, schaal=1):
+def personage(canvas, x, y, soort, schaal=1, tag=None):
     """Plaats een transparante sprite met zijn voeten op (x, y)."""
     if schaal <= 0:
         return
@@ -126,5 +109,5 @@ def personage(canvas, x, y, soort, schaal=1):
         y - SPRITE_VOET[1] * schaal,
         image=afbeelding,
         anchor="nw",
-        tags="personage",
+        tags=("personage", tag) if tag else "personage",
     )

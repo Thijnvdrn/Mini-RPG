@@ -10,7 +10,7 @@ from tkinter import messagebox, ttk
 from instellingen import (
     POTION_GENEZING_PERCENT, POTION_PRIJS, WAPEN_PRIJS, WAPEN_VERBETERING, BAAS_LEVEL,
     BAAS_GENEZING, NEDERLAAG_GOUD, LEVEL_HP_UPGRADE, LEVEL_AANVAL_UPGRADE,
-    LEVEL_VERDEDIGING_UPGRADE, LEVEL_UPGRADE_INTERVAL, EINDBAAS_LEVEL,
+    LEVEL_VERDEDIGING_UPGRADE, LEVEL_UPGRADE_INTERVAL, MAX_LEVEL, EINDBAAS_LEVEL, VERHALEN,
     ACHTERGROND, PANEEL, PANEEL_LICHT, TEKST,
     GEDIMD, GROEN, GOUD, ROOD, KLASSEN, xp_voor_level, wapen_prijs, wapen_limiet,
 )
@@ -45,7 +45,12 @@ class SpelInterface:
         self.wis_scherm()
         achtergrond = tk.Canvas(self.root, bg=ACHTERGROND, highlightthickness=0)
         achtergrond.place(relwidth=1, relheight=1)
-        achtergrond.bind("<Configure>", lambda e: landschap(achtergrond, e.width, e.height))
+        achtergrond.bind(
+            "<Configure>",
+            lambda e: self.plan_canvas_redraw(
+                achtergrond, landschap, achtergrond, e.width, e.height
+            ),
+        )
 
     def maak_popup(self, titel, padx=24, pady=22):
         """Maak een dialoog met dezelfde stijl en modaliteit."""
@@ -63,9 +68,24 @@ class SpelInterface:
         for taak in self.animaties:
             self.root.after_cancel(taak)
         self.animaties.clear()
+        self.canvas_redraw_tasks.clear()
         self.level_keuze_venster = None
         for widget in self.root.winfo_children():
             widget.destroy()
+
+    def plan_canvas_redraw(self, canvas, teken, *args):
+        taak = self.canvas_redraw_tasks.pop(canvas, None)
+        if taak is not None:
+            self.root.after_cancel(taak)
+            self.animaties.discard(taak)
+
+        def uitvoeren():
+            self.canvas_redraw_tasks.pop(canvas, None)
+            if canvas.winfo_exists():
+                teken(*args)
+
+        taak = self.later(60, uitvoeren)
+        self.canvas_redraw_tasks[canvas] = taak
 
     def later(self, vertraging, actie):
         def uitvoeren():
@@ -172,15 +192,32 @@ class SpelInterface:
             ).pack(side="left")
             self.label(rij, omschrijving, 10, GEDIMD).pack(side="right", padx=8)
 
+        self.label(kaart, "Kies je verhaal", 13, vet=True).pack(anchor="w", pady=(14, 4))
+        self.verhaal_keuze = tk.StringVar(value=next(iter(VERHALEN)))
+        tk.OptionMenu(
+            kaart,
+            self.verhaal_keuze,
+            *VERHALEN,
+            command=self.update_verhaal_beschrijving,
+        ).pack(fill="x")
+        self.verhaal_omschrijving = self.label(
+            kaart, VERHALEN[self.verhaal_keuze.get()]["beschrijving"], 10, GEDIMD,
+            wraplength=480, justify="left",
+        )
+        self.verhaal_omschrijving.pack(anchor="w", pady=(5, 0))
+
         self.knop(kaart, "Begin avontuur", self.start_spel, GROEN).pack(
             fill="x", pady=(22, 0)
         )
         self.label(inhoud, "Verken · Vecht · Word sterker", 10, GEDIMD).pack(pady=18)
         self.naam_invoer.focus_set()
 
+    def update_verhaal_beschrijving(self, verhaal):
+        self.verhaal_omschrijving.configure(text=VERHALEN[verhaal]["beschrijving"])
+
     def toon_spelscherm(self):
         self.wis_scherm()
-        header = tk.Frame(self.root, bg=ACHTERGROND, padx=24, pady=15)
+        header = tk.Frame(self.root, bg=ACHTERGROND, padx=40, pady=20)
         header.pack(fill="x")
         merk = tk.Frame(header, bg=ACHTERGROND)
         merk.pack(side="left")
@@ -188,20 +225,29 @@ class SpelInterface:
         self.label(merk, "De Wildernis", 23, TEKST, True).pack(anchor="w")
         self.header_status = self.label(header, "", 11, GEDIMD)
         self.header_status.pack(side="right")
+        muziek_status = "aan" if self.muziek_aan else "uit"
+        self.muziek_knop = self.knop(
+            header, f"Muziek: {muziek_status}", self.schakel_muziek
+        )
+        self.muziek_knop.pack(side="right", padx=(0, 16))
 
-        hoofd = tk.Frame(self.root, bg=ACHTERGROND, padx=24)
+        hoofd = tk.Frame(self.root, bg=ACHTERGROND, padx=40)
         hoofd.pack(fill="both", expand=True)
         self.scène = tk.Canvas(
             hoofd, height=270, bg="#172936", highlightthickness=1,
             highlightbackground="#36504c"
         )
         self.scène.pack(fill="both", expand=True, pady=(0, 14))
-        self.scène.bind("<Configure>", lambda _event: self.teken_scène())
+        self.scène.bind(
+            "<Configure>",
+            lambda _event: self.plan_canvas_redraw(self.scène, self.teken_scène),
+        )
 
         onder = tk.Frame(hoofd, bg=ACHTERGROND)
-        onder.pack(fill="x", pady=(0, 20))
-        links = tk.Frame(onder, bg=PANEEL, padx=18, pady=14)
-        links.pack(side="left", fill="y", padx=(0, 14))
+        onder.pack(fill="x", pady=(0, 28))
+        links = tk.Frame(onder, bg=PANEEL, width=320, padx=22, pady=18)
+        links.pack(side="left", fill="y", padx=(0, 18))
+        links.pack_propagate(False)
         rechts = tk.Frame(onder, bg=ACHTERGROND)
         rechts.pack(side="left", fill="both", expand=True)
 
@@ -213,30 +259,22 @@ class SpelInterface:
         self.hp_tekst = self.label(links, "", 10)
         self.hp_tekst.pack(anchor="w", pady=(16, 5))
         self.hp_balk = ttk.Progressbar(
-            links, style="HP.Horizontal.TProgressbar", length=180, maximum=100
+            links, style="HP.Horizontal.TProgressbar", length=260, maximum=100
         )
         self.hp_balk.pack(fill="x")
         self.xp_tekst = self.label(links, "", 10, GEDIMD)
         self.xp_tekst.pack(anchor="w", pady=(12, 3))
-        self.xp_balk = ttk.Progressbar(links, style="XP.Horizontal.TProgressbar", length=210)
+        self.xp_balk = ttk.Progressbar(links, style="XP.Horizontal.TProgressbar", length=260)
         self.xp_balk.pack(fill="x", pady=(3, 0))
         self.statistieken = self.label(links, "", 10, GEDIMD, justify="left")
         self.statistieken.pack(anchor="w", pady=(8, 0))
         self.inventaris_tekst = self.label(links, "", 10, GEDIMD, justify="left")
         self.inventaris_tekst.pack(anchor="w", pady=(13, 0))
 
-        self.vijand_frame = tk.Frame(rechts, bg=PANEEL, padx=14, pady=10)
+        self.vijand_frame = tk.Frame(rechts, bg=PANEEL, height=48, padx=14)
+        self.vijand_frame.pack_propagate(False)
         self.vijand_naam = self.label(self.vijand_frame, "", 11, ROOD, True)
         self.vijand_naam.pack(side="left")
-        self.vijand_hp = self.label(self.vijand_frame, "", 10, GEDIMD)
-        self.vijand_hp.pack(side="right")
-        self.vijand_balk = ttk.Progressbar(
-            self.vijand_frame,
-            style="Enemy.Horizontal.TProgressbar",
-            length=130,
-            maximum=100,
-        )
-        self.vijand_balk.pack(side="right", padx=12, fill="x", expand=True)
 
         log_frame = tk.Frame(rechts, bg=PANEEL, padx=12, pady=9)
         log_frame.pack(fill="both", expand=True, pady=(8, 10))
@@ -260,7 +298,6 @@ class SpelInterface:
         self.gebeurtenissen.tag_configure("schade", foreground=ROOD)
         self.gebeurtenissen.tag_configure("herstel", foreground=GROEN)
         self.vijand_frame.pack(fill="x")
-        self.vijand_frame.pack_forget()
         self.gebeurtenissen.pack(fill="both", expand=True)
 
         self.acties = tk.Frame(rechts, bg=ACHTERGROND)
@@ -290,7 +327,12 @@ class SpelInterface:
             maximum=speler["max_hp"], value=speler["hp"]
         )
         xp_nodig = xp_voor_level(speler["level"])
-        self.xp_tekst.configure(text="VOLGEND LEVEL   Versla één vijand")
+        if speler["level"] >= MAX_LEVEL:
+            self.xp_tekst.configure(text="MAXIMAAL LEVEL")
+        else:
+            self.xp_tekst.configure(
+                text=f"VOLGEND LEVEL   {speler['xp']} / {xp_nodig} XP"
+            )
         self.xp_balk.configure(maximum=xp_nodig, value=speler["xp"])
         self.statistieken.configure(
             text=f"Aanval     {speler['aanval']}\n"
@@ -472,6 +514,87 @@ class SpelInterface:
             self.later(35, lambda: stap(frame + 1))
         stap()
 
+    def animeer_slag(self, aanvaller, doel, voorwaarts):
+        canvas = getattr(self, "scène", None)
+        if canvas is None or not canvas.winfo_exists():
+            return
+        aanvaller_tag = aanvaller
+        if not canvas.find_withtag(aanvaller_tag):
+            return
+
+        breedte = max(canvas.winfo_width(), 500)
+        hoogte = max(canvas.winfo_height(), 250)
+        doel_box = canvas.bbox(doel)
+        if doel_box:
+            doel_x = (doel_box[0] + doel_box[2]) / 2
+            doel_y = (doel_box[1] + doel_box[3]) / 2
+        else:
+            doel_x = breedte * (0.72 if voorwaarts else 0.28)
+            doel_y = hoogte * 0.58
+
+        verplaatsingen = (10, 20, 12, 0)
+        vorige_verplaatsing = 0
+
+        def stap(frame=0):
+            nonlocal vorige_verplaatsing
+            if not canvas.winfo_exists() or not canvas.find_withtag(aanvaller_tag):
+                return
+            if frame >= len(verplaatsingen):
+                return
+            verplaatsing = verplaatsingen[frame]
+            canvas.move(aanvaller_tag, (verplaatsing - vorige_verplaatsing) * voorwaarts, -2 if frame < 2 else 1)
+            vorige_verplaatsing = verplaatsing
+
+            if frame == 1:
+                self._toon_slagflits(canvas, doel_x, doel_y)
+            self.later(45, lambda: stap(frame + 1))
+
+        stap()
+
+    def _toon_slagflits(self, canvas, x, y):
+        lijnen = (
+            (x - 24, y - 15, x + 17, y + 13),
+            (x - 14, y + 18, x + 22, y - 17),
+            (x - 29, y + 1, x + 28, y - 2),
+        )
+        for lijn in lijnen:
+            canvas.create_line(
+                *lijn, fill=GOUD, width=4, capstyle="round", tags="slagflits"
+            )
+        self.later(105, lambda: canvas.delete("slagflits") if canvas.winfo_exists() else None)
+
+    def animeer_geraakt(self, doel):
+        canvas = getattr(self, "scène", None)
+        if canvas is None or not canvas.winfo_exists():
+            return
+        doel_box = canvas.bbox(doel)
+        if not doel_box:
+            return
+
+        flits = canvas.create_oval(
+            doel_box[0] + 14, doel_box[1] + 14, doel_box[2] - 14, doel_box[3] - 14,
+            outline=ROOD, width=4, tags="raakflits",
+        )
+        verplaatsingen = (9, -15, 11, -5, 0)
+        vorige_verplaatsing = 0
+
+        def stap(frame=0):
+            nonlocal vorige_verplaatsing
+            if not canvas.winfo_exists() or not canvas.find_withtag(doel):
+                return
+            if frame >= len(verplaatsingen):
+                canvas.delete(flits)
+                return
+            verplaatsing = verplaatsingen[frame]
+            delta = verplaatsing - vorige_verplaatsing
+            canvas.move(doel, delta, 0)
+            canvas.move(flits, delta, 0)
+            vorige_verplaatsing = verplaatsing
+            canvas.itemconfigure(flits, outline=ROOD if frame % 2 == 0 else GOUD)
+            self.later(45, lambda: stap(frame + 1))
+
+        stap()
+
     def teken_scène(self):
         if not hasattr(self, "scène") or not self.scène.winfo_exists():
             return
@@ -479,45 +602,81 @@ class SpelInterface:
         canvas.delete("all")
         breedte = max(canvas.winfo_width(), 500)
         hoogte = max(canvas.winfo_height(), 250)
+        tekst_schaal = min(1.5, max(1.0, breedte / 1280))
         landschap(canvas, breedte, hoogte)
         baasgevecht = self.gevecht and self.vijand and self.vijand.get("baas")
         if not baasgevecht:
             canvas.create_rectangle(18, 16, 265, 73, fill="#13262d", outline="#36504c")
             canvas.create_text(32, 32, text="DE WILDERNIS  /  MAANWOUD", anchor="w",
-                               fill=GOUD, font=("Segoe UI", 9, "bold"))
+                               fill=GOUD, font=("Segoe UI", round(9 * tekst_schaal), "bold"))
             canvas.create_text(32, 54, text="Een vijand blokkeert je pad" if self.gevecht
                                else "Verken het woud voor een nieuw avontuur", anchor="w",
-                               fill=TEKST, font=("Segoe UI", 10))
+                               fill=TEKST, font=("Segoe UI", round(10 * tekst_schaal)))
         grond = hoogte * .84
-        schaal = min(1.3, hoogte / 300)
+        schaal = min(2.6, hoogte / 260)
         held_x = breedte * .28
-        personage(canvas, held_x, grond, self.speler["klasse"], schaal)
-        canvas.create_text(held_x, grond + 24, text=self.speler["naam"],
-                           fill=TEKST, font=("Segoe UI", 11, "bold"))
+        personage(canvas, held_x, grond, self.speler["klasse"], schaal, "held")
+        canvas.create_text(held_x, grond + 28 * schaal / 1.3, text=self.speler["naam"],
+                           fill=TEKST, font=("Segoe UI", round(14 * tekst_schaal), "bold"),
+                           tags="held")
         if self.gevecht and self.vijand:
             vijand_x = breedte * .72
             vijand_schaal = min(schaal * 1.35, (grond - 114) / 138) if baasgevecht else schaal
-            personage(canvas, vijand_x, grond, self.vijand["naam"], vijand_schaal)
-            canvas.create_text(vijand_x, grond + 24, text=self.vijand["naam"],
-                               fill="#efb2a0", font=("Segoe UI", 11, "bold"))
+            personage(canvas, vijand_x, grond, self.vijand["naam"], vijand_schaal, "vijand")
+            canvas.create_text(vijand_x, grond + 28 * vijand_schaal / 1.3,
+                               text=self.vijand["naam"],
+                               fill="#efb2a0",
+                               font=("Segoe UI", round(14 * tekst_schaal), "bold"),
+                               tags="vijand")
+            if not baasgevecht:
+                balk_breedte = min(300, max(140, round(190 * tekst_schaal)))
+                balk_hoogte = max(8, round(12 * tekst_schaal))
+                balk_midden = vijand_x
+                balk_links = balk_midden - balk_breedte / 2
+                balk_rechts = balk_midden + balk_breedte / 2
+                balk_y = grond - 152 * vijand_schaal - 22 * tekst_schaal
+                verhouding = max(
+                    0, min(1, self.vijand["hp"] / self.vijand["max_hp"])
+                )
+                canvas.create_text(
+                    balk_midden, balk_y - 10 * tekst_schaal,
+                    text=f"{self.vijand['hp']} / {self.vijand['max_hp']} HP",
+                    fill=TEKST,
+                    font=("Segoe UI", round(11 * tekst_schaal), "bold"),
+                    tags="vijand_hp_scherm",
+                )
+                canvas.create_rectangle(
+                    balk_links, balk_y, balk_rechts, balk_y + balk_hoogte,
+                    fill="#263c43", outline="#edf3e8", width=1,
+                    tags="vijand_hp_scherm",
+                )
+                if verhouding:
+                    canvas.create_rectangle(
+                        balk_links + 1, balk_y + 1,
+                        balk_links + 1 + (balk_breedte - 2) * verhouding,
+                        balk_y + balk_hoogte - 1,
+                        fill=ROOD, outline="", tags="vijand_hp_scherm",
+                    )
             canvas.create_text(breedte*.5, grond-45, text="VS", fill=GOUD,
-                               font=("Segoe UI", 13, "bold"))
+                               font=("Segoe UI", round(18 * tekst_schaal), "bold"))
             if baasgevecht:
-                self.vijand_frame.pack_forget()
+                self.vijand_naam.configure(
+                    text="BAASGEVECHT · HP IN SCÈNE", fg=GOUD
+                )
                 volgende = (self.vijand["beurten"] + 1) % 3 == 0
                 baas_balk(
                     canvas, breedte, self.vijand, volgende,
                     self.vijand.get("genezing", BAAS_GENEZING),
                 )
             else:
-                self.vijand_frame.pack(fill="x", before=self.gebeurtenissen.master)
-            self.vijand_balk.configure(maximum=self.vijand["max_hp"], value=self.vijand["hp"])
-            volgende = (self.vijand["beurten"] + 1) % 3 == 0
-            self.vijand_naam.configure(text=self.vijand["naam"].upper() +
-                                      (" / ZWARE AANVAL!" if volgende else " / Normale aanval"))
-            self.vijand_hp.configure(text=f"{self.vijand['hp']} / {self.vijand['max_hp']} HP")
+                volgende = (self.vijand["beurten"] + 1) % 3 == 0
+                self.vijand_naam.configure(
+                    text=self.vijand["naam"].upper() +
+                    (" / ZWARE AANVAL!" if volgende else " / Normale aanval"),
+                    fg=ROOD,
+                )
         else:
-            self.vijand_frame.pack_forget()
+            self.vijand_naam.configure(text="Geen vijand in zicht", fg=GEDIMD)
             canvas.create_text(breedte*.5, hoogte-16,
-                               text=f"Klik op Verkennen / Nachtvorst: level {BAAS_LEVEL} / Gouden Draak: level {EINDBAAS_LEVEL}",
-                               fill=TEKST, font=("Segoe UI", 10))
+                               text=f"Verken / Nachtvorst: level {BAAS_LEVEL} / Gouden Draak: level {EINDBAAS_LEVEL} / Max: {MAX_LEVEL}",
+                               fill=TEKST, font=("Segoe UI", round(10 * tekst_schaal)))
